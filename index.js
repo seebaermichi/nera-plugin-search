@@ -1,7 +1,6 @@
 import path from 'path'
 import fs from 'fs/promises'
 import { getConfig } from '@nera-static/plugin-utils'
-import { fileURLToPath } from 'url'
 
 const CONFIG_PATH = path.resolve(process.cwd(), 'config/search.yaml')
 
@@ -31,13 +30,8 @@ export async function getAppData({ app, pagesData }) {
         return item
     })
 
-    fs.writeFile(outputPath, JSON.stringify(index, null, 2), 'utf-8')
-
-    const __dirname = path.dirname(fileURLToPath(import.meta.url))
-    const sourceJS = path.join(__dirname, 'views', 'search.js')
-    const targetJS = path.join(app.folders.assets, 'js', 'search.js')
-    await fs.mkdir(path.dirname(targetJS), { recursive: true })
-    await fs.copyFile(sourceJS, targetJS)
+    await fs.mkdir(path.dirname(outputPath), { recursive: true })
+    await fs.writeFile(outputPath, JSON.stringify(index, null, 2), 'utf-8')
 
     return {
         ...app,
