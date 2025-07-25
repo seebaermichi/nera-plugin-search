@@ -1,0 +1,7 @@
+fields:
+  - title
+  - excerpt
+  - content
+  - href
+strip_html: true
+output_filename: search-index.json

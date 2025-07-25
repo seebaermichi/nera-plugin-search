@@ -1,0 +1,13 @@
+.section.search
+  h1.search__title Search
+
+  input.search__input(
+    type="search",
+    placeholder="Search...",
+    data-search-input,
+    data-results="[data-search__results]"
+  )
+
+  ul.search__results(data-search__results)
+
+script(src="/js/search.js")
