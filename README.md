@@ -72,7 +72,7 @@ layout: pages/default.pug
 script(src="/js/search.js")
 ```
 
-The plugin will create `assets/js/search.js` and inject the `search-index.json` into your `/public` output.
+The plugin will create the `search-index.json` into your `/public` output.
 
 You can include multiple search inputs on a page by using different `[data-results]` selectors.
 
@@ -101,7 +101,7 @@ views/vendor/plugin-search/search.pug
 
 to your local project. You can now edit or extend the search markup freely.
 
-The plugin also automatically copies `assets/search-content.json` to `assets/js/search.js` on render. This file handles DOM bindings and result generation.
+The command also copies the `search.js` file to `assets/js/`. It handles DOM bindings and result generation.
 
 ## 🎨 Styling
 
