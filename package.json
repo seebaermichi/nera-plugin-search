@@ -1,0 +1,57 @@
+{
+  "name": "@nera-static/plugin-search",
+  "version": "1.0.0",
+  "description": "A plugin for the Nera static site generator that builds a JSON search index and provides a client-side search script.",
+  "main": "index.js",
+  "scripts": {
+    "publish-template": "node ./bin/publish-template.js",
+    "lint": "eslint .",
+    "test": "vitest"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  },
+  "bin": {
+    "nera-search": "./bin/publish-template.js"
+  },
+  "files": [
+    "bin",
+    "config",
+    "views",
+    "index.js",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "nera",
+    "plugin",
+    "search",
+    "static-site",
+    "client-side-search",
+    "search-index",
+    "lunr",
+    "json"
+  ],
+  "author": "Michael Becker",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seebaermichi/nera-plugin-search.git"
+  },
+  "bugs": {
+    "url": "https://github.com/seebaermichi/nera-plugin-search/issues"
+  },
+  "homepage": "https://github.com/seebaermichi/nera-plugin-search#readme",
+  "dependencies": {
+    "@nera-static/plugin-utils": "^1.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "eslint": "^9.31.0",
+    "husky": "^9.1.7",
+    "pug": "^3.0.3",
+    "vitest": "^3.2.4"
+  }
+}
