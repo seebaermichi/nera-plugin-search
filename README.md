@@ -1,5 +1,8 @@
 # @nera-static/plugin-search
 
+[![Test](https://github.com/seebaermichi/nera-plugin-search/actions/workflows/test.yml/badge.svg)](https://github.com/seebaermichi/nera-plugin-search/actions/workflows/test.yml)
+[![npm version](https://img.shields.io/npm/v/@nera-static/plugin-search)](https://www.npmjs.com/package/@nera-static/plugin-search)
+
 A plugin for the [Nera](https://github.com/seebaermichi/nera) static site generator that adds a lightweight client-side search functionality. It builds a searchable JSON index from your content and provides a ready-to-use search interface – all without requiring a backend.
 
 ## ✨ Features
