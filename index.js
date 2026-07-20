@@ -1,17 +1,22 @@
 import path from 'path'
-import fs from 'fs/promises'
+import fs from 'fs'
 import { getConfig } from '@nera-static/plugin-utils'
 
-const CONFIG_PATH = path.resolve(process.cwd(), 'config/search.yaml')
+const DEFAULT_ASSETS_FOLDER = './assets'
 
 function stripHtml(html) {
     return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
 }
 
-export async function getAppData({ app, pagesData }) {
-    const config = getConfig(CONFIG_PATH)
+// Must stay synchronous. The generator only started awaiting plugin hooks in
+// 4.3.0, and that fix never reaches already-cloned sites — an async hook there
+// replaces `app` with a Promise, silently wiping every `app.*` value for each
+// plugin that runs later.
+export function getAppData({ app, pagesData }) {
+    const config = getConfig(path.resolve(process.cwd(), 'config/search.yaml'))
     const filename = config.output_filename || 'search-index.json'
-    const outputPath = path.join(app.folders.assets, filename)
+    const assetsFolder = app?.folders?.assets || DEFAULT_ASSETS_FOLDER
+    const outputPath = path.join(assetsFolder, filename)
 
     const fields = config.fields || ['title', 'excerpt', 'content', 'href']
     const strip = config.strip_html ?? true
@@ -30,8 +35,8 @@ export async function getAppData({ app, pagesData }) {
         return item
     })
 
-    await fs.mkdir(path.dirname(outputPath), { recursive: true })
-    await fs.writeFile(outputPath, JSON.stringify(index, null, 2), 'utf-8')
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true })
+    fs.writeFileSync(outputPath, JSON.stringify(index, null, 2), 'utf-8')
 
     return {
         ...app,

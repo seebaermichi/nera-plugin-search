@@ -8,7 +8,7 @@ A plugin for the [Nera](https://github.com/seebaermichi/nera) static site genera
 - Fully client-side – no backend or JavaScript framework needed
 - Configurable search fields (e.g., `title`, `excerpt`, `description`)
 - Option to strip HTML from content before indexing
-- Auto-includes search script in assets
+- Ships a client-side search script, published on request
 - Includes ready-to-use Pug template with BEM-compatible markup
 - Supports multiple search inputs per page
 - Full compatibility with Nera v4.2.0+
@@ -72,7 +72,10 @@ layout: pages/default.pug
 script(src="/js/search.js")
 ```
 
-The plugin will create the `search-index.json` into your `/public` output.
+The plugin writes the index into your **source** assets folder, and Nera copies
+that folder into `public/` at the end of the render — so the built site serves
+it from `/search-index.json`. See [Generated Output](#-generated-output) for
+what this means for version control.
 
 You can include multiple search inputs on a page by using different `[data-results]` selectors.
 
@@ -90,7 +93,7 @@ You can include multiple search inputs on a page by using different `[data-resul
 To customize the default view:
 
 ```bash
-npx @nera-static/plugin-search run publish-template
+npx nera-search
 ```
 
 This will copy:
@@ -102,6 +105,14 @@ views/vendor/plugin-search/search.pug
 to your local project. You can now edit or extend the search markup freely.
 
 The command also copies the `search.js` file to `assets/js/`. It handles DOM bindings and result generation.
+
+Both steps **skip if the destination already exists**, so re-running the command
+never discards your edits. To deliberately overwrite them with the packaged
+versions:
+
+```bash
+npx nera-search --force
+```
 
 ## 🎨 Styling
 
@@ -118,9 +129,32 @@ Customize freely via your own stylesheets.
 
 ## 📊 Generated Output
 
-- `assets/search-index.json`: contains all indexed page data
-- `assets/js/search.js`: minimal client-side logic for filtering and rendering
-- `app.searchIndexPath`: injected into `app` data for template access
+- `<assets folder>/<output_filename>`: contains all indexed page data. The
+  location follows `folders.assets` in your `config/app.yaml` (default
+  `./assets`) and `output_filename` in `config/search.yaml` (default
+  `search-index.json`) — it is **not** fixed at `assets/search-index.json`.
+- `assets/js/search.js`: minimal client-side logic for filtering and rendering,
+  copied by the publish command rather than by the render.
+- `app.searchIndexPath`: the index's public URL, added to `app` data. Available
+  to your own templates; the shipped `search.pug` does not use it, since
+  `search.js` resolves the path itself.
+
+### ⚠️ The index is written into your source tree
+
+The index has to be written into the **source** assets folder, not into
+`public/`. Nera deletes `public/` and then copies assets into it *after*
+plugins run, so anything a plugin writes directly to `public/` is discarded.
+
+That means each render creates or updates a generated file inside a directory
+you probably track in git. To keep it out of version control while still
+serving it, add it to `.gitignore`:
+
+```
+assets/search-index.json
+```
+
+Do **not** add it to `.neraignore` — that would stop Nera copying it into
+`public/`, and the search would find no index at runtime.
 
 ## 🧪 Development
 
@@ -134,8 +168,9 @@ Tests use [Vitest](https://vitest.dev) and cover:
 
 - Index creation from `pagesData`
 - Correct JSON structure and file writing
-- `search.js` copy to assets folder
-- Config-driven field control and HTML stripping
+- That `getAppData` stays synchronous and preserves existing `app` values
+- Fallback to `./assets` when `folders.assets` is absent
+- Config-driven field control, custom output filename, and HTML stripping
 
 ## 🧑‍💻 Author
 
