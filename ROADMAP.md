@@ -290,4 +290,20 @@ untouched, which is the evidence the opt-out path is unchanged — plus a test
 that asserts the file written with `group_by_lang` absent is byte for byte the
 one written with it set to `false`).
 
-**Still open:** wiring `nera-website`, exactly as scoped above.
+**`nera-website` is wired** (2026-07-21, local commits): `group_by_lang: true`
+in its `config/search.yaml`, dependency at `^1.3.0`. Its
+`config/plugin-order.yaml` already ran search last, so the tag pages
+`plugin-tags` generates land in the right language's index with no change.
+Verified in a browser across all three languages — each search page fetches its
+own index and returns only its own language's pages — and the tutorial
+`pages/**/tutorials/add-search.md` documents the feature in all three.
+
+One correction to the sequencing note above, worth carrying to the next plugin
+upgrade on that site: **`npx nera-search --force` was the wrong instruction.**
+Both vendored files carry site edits — `t()` strings in `search.pug`, `<mark>`
+highlighting and custom result markup in `search.js` — and `--force` would have
+discarded them silently. The two changes were merged by hand instead. Any site
+that customised its published templates is in the same position, which is why
+the plugin README now says to merge rather than force.
+
+**Nothing else is open on this feature.**

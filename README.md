@@ -155,10 +155,18 @@ input.search__input(
 )
 ```
 
-If your site published templates before upgrading, re-run
-`npx nera-search --force` — otherwise your vendored `search.pug` and
+If your site published templates before upgrading, its vendored `search.pug` and
 `assets/js/search.js` keep requesting `/search-index.json`, and search falls
-back to the default language on every page.
+back to the default language on every page. Refresh them with
+`npx nera-search --force` — but **only if you never edited them**: `--force`
+overwrites your copies wholesale. If they are customised, merge the two changes
+by hand instead:
+
+- `search.pug`: add
+  `data-search-index=(meta && meta.searchIndexPath) || (app && app.searchIndexPath)`
+  to the input.
+- `search.js`: fetch `input.dataset.searchIndex || '/search-index.json'`, per
+  input rather than once per page.
 
 ### Data exposed
 
