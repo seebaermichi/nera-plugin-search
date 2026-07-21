@@ -110,6 +110,24 @@ describe('shipped search.pug template', () => {
         expect(html).toContain('data-search-index="/custom-index.json"')
     })
 
+    it('prefers the page language index over the site-wide one', () => {
+        const html = renderTemplate({
+            app: { searchIndexPath: '/search-index.json' },
+            meta: { searchIndexPath: '/search-index.de.json' }
+        })
+
+        expect(html).toContain('data-search-index="/search-index.de.json"')
+    })
+
+    it('falls back to app.searchIndexPath when the page has none', () => {
+        const html = renderTemplate({
+            app: { searchIndexPath: '/search-index.json' },
+            meta: { title: 'Search' }
+        })
+
+        expect(html).toContain('data-search-index="/search-index.json"')
+    })
+
     it('omits the attribute when no index path is available', () => {
         const html = renderTemplate({ app: {} })
 

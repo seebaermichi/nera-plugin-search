@@ -5,3 +5,8 @@ fields:
   - href
 strip_html: true
 output_filename: search-index.json
+
+# Build one index per language instead of one for the whole site (default:
+# false). The default language keeps `output_filename`; every other language
+# gets its code before the extension, e.g. search-index.de.json
+group_by_lang: false

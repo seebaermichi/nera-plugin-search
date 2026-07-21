@@ -5,7 +5,10 @@ with enough detail to pick up later.
 
 ## Per-language search index
 
-**Status:** proposed · **Filed:** 2026-07-21 · **Likely semver:** minor (opt-in)
+**Status:** shipped in 1.3.0 on 2026-07-21 · **Filed:** 2026-07-21 ·
+**Semver:** minor (opt-in). See "Resolved 2026-07-21" at the end of this
+section for what was actually built and what was deliberately left out; the
+proposal below is kept as the reasoning that led there.
 
 > The sibling feature shipped in `@nera-static/plugin-tags` 3.2.0 on
 > 2026-07-21. Read "Context added 2026-07-21 — lessons from shipping the same
@@ -241,3 +244,50 @@ the same reason it was for tags — two streams of work editing the same site
 files at once. Note the site's search-related state before assuming defaults:
 it has its own `config/search.yaml`, and its vendored templates under
 `views/vendor/plugin-search/` will need `npx nera-search --force`.
+
+### Resolved 2026-07-21 — shipped in 1.2.1 and 1.3.0
+
+Built in two releases, in the sequence recommended above.
+
+**1.2.1 (patch) — the hardcoded client URL.** `search.pug` now emits
+`data-search-index`, `search.js` reads `input.dataset.searchIndex` and keeps
+`/search-index.json` as its fallback. That made `output_filename` work end to
+end for the first time, independently of any language work. It also brought
+the first client-side tests: `happy-dom` (devDependency, so no release impact)
+plus running `views/search.js` through `new Function('document', 'fetch', …)`,
+which gives every test its own window and its own request log instead of one
+shared global document.
+
+One change fell out of it: the client used to fetch the index **once** for all
+inputs, then attach a handler per input. It now fetches per input, since each
+input carries its own URL. Nesting depth is unchanged.
+
+**1.3.0 (minor) — per-language indexes.** Every recommendation above was
+followed as written: no new frontmatter key, no filename-mapping config, a
+plain `Map<lang, pages[]>` whose `groupByLang ? … : defaultLang` line makes the
+single-index path the same code with one entry, the default language at the
+unsuffixed filename, `path.parse` for derivation, and synchronous
+`fs.writeFileSync` in a loop.
+
+Deliberately **not** built:
+
+- **No `suffix_default_lang`.** Tags has `prefix_default_lang` because a site
+  can plausibly serve every language from its own directory, including the
+  default one. Index filenames have no such symmetry to preserve — and the
+  unsuffixed default filename *is* the backward-compatibility mechanism for
+  stale vendored templates, so making it configurable would offer a switch
+  whose only effect is to break them.
+- **No combined/`x-default` index.** Nothing asked for it, and the `lang` field
+  on every entry means a site that wants one client for all languages can
+  filter instead of splitting.
+
+The "single index + `lang` field" alternative was not treated as an either/or:
+entries carry `lang` when grouping is on, so both approaches are available from
+one build.
+
+34 tests pass (8 → 34 across both releases; the 8 pre-existing ones are
+untouched, which is the evidence the opt-out path is unchanged — plus a test
+that asserts the file written with `group_by_lang` absent is byte for byte the
+one written with it set to `false`).
+
+**Still open:** wiring `nera-website`, exactly as scoped above.

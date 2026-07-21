@@ -2,12 +2,13 @@
   h1.search__title Search
 
   //- The index URL is passed to the client rather than hardcoded there, so a
-      site that renamed `output_filename` still loads its own index.
+      site that renamed `output_filename` still loads its own index. With
+      `group_by_lang` on, `meta.searchIndexPath` is this page's language.
   input.search__input(
     type="search",
     placeholder="Search...",
     data-search-input,
-    data-search-index=app && app.searchIndexPath,
+    data-search-index=(meta && meta.searchIndexPath) || (app && app.searchIndexPath),
     data-results="[data-search__results]"
   )
 

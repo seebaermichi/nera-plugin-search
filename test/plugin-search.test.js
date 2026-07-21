@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
-import { getAppData } from '../index.js'
+import { getAppData, getMetaData } from '../index.js'
 
 let cwd
 let originalCwd
@@ -125,5 +125,233 @@ describe('plugin-search getAppData()', () => {
         expect(readIndex()[0].content).toBe(
             '<p>This is the <em>main</em> content</p>'
         )
+    })
+
+    it('exposes the single index under the default language too', () => {
+        const result = getAppData({
+            app: { lang: 'en', folders: { assets: './assets' } },
+            pagesData
+        })
+
+        expect(result.searchIndexPaths).toEqual({ en: '/search-index.json' })
+    })
+})
+
+const app = { lang: 'en', folders: { assets: './assets' } }
+
+const multilingualPages = [
+    {
+        meta: { title: 'Getting started', href: '/start', lang: 'en' },
+        content: '<p>Install Nera</p>'
+    },
+    {
+        meta: { title: 'Erste Schritte', href: '/de/start', lang: 'de' },
+        content: '<p>Nera einrichten</p>'
+    },
+    {
+        meta: { title: 'Primeros pasos', href: '/es/start', lang: 'es' },
+        content: '<p>Instalar Nera</p>'
+    },
+    {
+        // No `lang` — belongs to the site's default language.
+        meta: { title: 'Imprint', href: '/imprint' },
+        content: '<p>Legal notice</p>'
+    }
+]
+
+const listIndexes = () =>
+    fs.readdirSync(path.join(cwd, 'assets')).sort()
+
+describe('plugin-search group_by_lang', () => {
+    beforeEach(() => {
+        writeConfig('group_by_lang: true\n')
+    })
+
+    it('writes one index per language, default language unsuffixed', () => {
+        getAppData({ app, pagesData: multilingualPages })
+
+        expect(listIndexes()).toEqual([
+            'search-index.de.json',
+            'search-index.es.json',
+            'search-index.json'
+        ])
+    })
+
+    // The actual bug: a German page's text showing up in English results.
+    it('keeps each language out of the other languages indexes', () => {
+        getAppData({ app, pagesData: multilingualPages })
+
+        const hrefs = (file) => readIndex(file).map(entry => entry.href)
+
+        expect(hrefs()).toEqual(['/start', '/imprint'])
+        expect(hrefs('search-index.de.json')).toEqual(['/de/start'])
+        expect(hrefs('search-index.es.json')).toEqual(['/es/start'])
+        expect(JSON.stringify(readIndex())).not.toContain('einrichten')
+    })
+
+    it('indexes pages without meta.lang under the default language', () => {
+        getAppData({ app, pagesData: multilingualPages })
+
+        expect(readIndex().map(entry => entry.title)).toContain('Imprint')
+    })
+
+    it('tags every entry with its language', () => {
+        getAppData({ app, pagesData: multilingualPages })
+
+        expect(readIndex().map(entry => entry.lang)).toEqual(['en', 'en'])
+        expect(readIndex('search-index.de.json')[0].lang).toBe('de')
+    })
+
+    it('exposes a path per language and keeps searchIndexPath a string', () => {
+        const result = getAppData({ app, pagesData: multilingualPages })
+
+        expect(result.searchIndexPath).toBe('/search-index.json')
+        expect(result.searchIndexPaths).toEqual({
+            en: '/search-index.json',
+            de: '/search-index.de.json',
+            es: '/search-index.es.json'
+        })
+    })
+
+    it('follows app.lang when the default language is not English', () => {
+        const result = getAppData({
+            app: { lang: 'de', folders: { assets: './assets' } },
+            pagesData: multilingualPages
+        })
+
+        expect(result.searchIndexPaths).toEqual({
+            de: '/search-index.json',
+            en: '/search-index.en.json',
+            es: '/search-index.es.json'
+        })
+        // The page without a `lang` follows the default language, whichever
+        // one that is.
+        expect(readIndex().map(entry => entry.href)).toEqual([
+            '/de/start',
+            '/imprint'
+        ])
+        expect(readIndex('search-index.en.json').map(e => e.href)).toEqual([
+            '/start'
+        ])
+    })
+
+    it('inserts the language before the extension of a custom filename', () => {
+        writeConfig('group_by_lang: true\noutput_filename: data/pages.json\n')
+
+        const result = getAppData({ app, pagesData: multilingualPages })
+
+        expect(result.searchIndexPaths.de).toBe('/data/pages.de.json')
+        expect(
+            fs.existsSync(path.join(cwd, 'assets/data/pages.de.json'))
+        ).toBe(true)
+    })
+
+    it('appends the language when the filename has no extension', () => {
+        writeConfig('group_by_lang: true\noutput_filename: searchdata\n')
+
+        const result = getAppData({ app, pagesData: multilingualPages })
+
+        expect(result.searchIndexPaths).toMatchObject({
+            en: '/searchdata',
+            de: '/searchdata.de'
+        })
+        expect(listIndexes()).toEqual([
+            'searchdata',
+            'searchdata.de',
+            'searchdata.es'
+        ])
+    })
+
+    it('writes a single index when no page has a lang', () => {
+        getAppData({ app, pagesData })
+
+        expect(listIndexes()).toEqual(['search-index.json'])
+    })
+
+    // A site that upgrades the package but keeps its vendored templates and
+    // client still requests the hardcoded `/search-index.json`. That URL must
+    // stay populated, so such a site degrades to "search works, in the default
+    // language" rather than 404ing its index for everyone.
+    it('leaves the default language where a stale client looks for it', () => {
+        getAppData({ app, pagesData: multilingualPages })
+
+        expect(fs.existsSync(path.join(cwd, 'assets/search-index.json'))).toBe(
+            true
+        )
+        expect(readIndex().map(entry => entry.href)).toEqual([
+            '/start',
+            '/imprint'
+        ])
+    })
+
+    it('stays synchronous', () => {
+        const result = getAppData({ app, pagesData: multilingualPages })
+
+        expect(typeof result.then).not.toBe('function')
+    })
+})
+
+// Opting out must be indistinguishable from the version before the feature.
+describe('plugin-search group_by_lang disabled', () => {
+    it('builds one index from every language, without a lang field', () => {
+        getAppData({ app, pagesData: multilingualPages })
+
+        expect(listIndexes()).toEqual(['search-index.json'])
+        expect(readIndex().map(entry => entry.href)).toEqual([
+            '/start',
+            '/de/start',
+            '/es/start',
+            '/imprint'
+        ])
+        readIndex().forEach(entry =>
+            expect(entry).not.toHaveProperty('lang')
+        )
+    })
+
+    it('produces the same file with group_by_lang: false written out', () => {
+        getAppData({ app, pagesData: multilingualPages })
+        const implicit = fs.readFileSync(
+            path.join(cwd, 'assets/search-index.json'),
+            'utf-8'
+        )
+
+        writeConfig('group_by_lang: false\n')
+        getAppData({ app, pagesData: multilingualPages })
+
+        expect(
+            fs.readFileSync(path.join(cwd, 'assets/search-index.json'), 'utf-8')
+        ).toBe(implicit)
+    })
+})
+
+describe('plugin-search getMetaData()', () => {
+    it('returns pagesData untouched when grouping is off', () => {
+        const result = getMetaData({ app, pagesData: multilingualPages })
+
+        expect(result).toBe(multilingualPages)
+    })
+
+    it('adds each page its own language index path', () => {
+        writeConfig('group_by_lang: true\n')
+
+        const result = getMetaData({ app, pagesData: multilingualPages })
+
+        expect(result.map(page => page.meta.searchIndexPath)).toEqual([
+            '/search-index.json',
+            '/search-index.de.json',
+            '/search-index.es.json',
+            '/search-index.json'
+        ])
+        expect(Array.isArray(result)).toBe(true)
+        expect(result[0].meta.title).toBe('Getting started')
+        expect(result[0].content).toBe('<p>Install Nera</p>')
+    })
+
+    it('does not mutate the pages it was given', () => {
+        writeConfig('group_by_lang: true\n')
+
+        getMetaData({ app, pagesData: multilingualPages })
+
+        expect(multilingualPages[1].meta).not.toHaveProperty('searchIndexPath')
     })
 })
