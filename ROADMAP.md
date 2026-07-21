@@ -7,6 +7,12 @@ with enough detail to pick up later.
 
 **Status:** proposed · **Filed:** 2026-07-21 · **Likely semver:** minor (opt-in)
 
+> The sibling feature shipped in `@nera-static/plugin-tags` 3.2.0 on
+> 2026-07-21. Read "Context added 2026-07-21 — lessons from shipping the same
+> feature in plugin-tags" at the end of this section **before** starting: it
+> settles several of the open questions below by precedent, and records two
+> dead ends that cost real work in that repo.
+
 **Motivation.** Surfaced while building a trilingual site (English/German/Spanish)
 with Nera. The plugin currently builds **one** index from every page, so on a
 multilingual site the search box on a German page returns English and Spanish
@@ -56,3 +62,182 @@ minimal first step and is itself backward compatible (just an extra field).
 **Acceptance.** A trilingual site produces one index per language; the search box
 on a `/de/` page returns only German results; a single-language site (no
 `group_by_lang`, or no `meta.lang`) behaves exactly as it does today.
+
+### Context added 2026-07-21 — lessons from shipping the same feature in plugin-tags
+
+`@nera-static/plugin-tags` 3.2.0 shipped per-language tags on 2026-07-21 (see
+`nera-plugin-tags/ROADMAP.md`, section "Resolved 2026-07-21"). It is the same
+feature shape — opt-in `group_by_lang`, partition by `meta.lang`, keep the old
+single-namespace output as the default — so several of its decisions transfer
+directly, and two of its wrong turns are worth not repeating. The decisions
+below are **recommendations carried over, not settled facts for this repo**;
+they are recorded so the next session starts from evidence rather than a blank
+page.
+
+#### Settled by precedent — copy these
+
+**No new frontmatter key.** Pages already carry `lang:` — every one of the 63
+pages in `nera-website` sets it. Read `meta.lang`, fall back to `app.lang`
+(itself defaulting to `'en'`), and that is the entire per-page input. A
+search-specific key would be a second source of truth to keep in sync by hand.
+
+```js
+function getPageLang(meta, defaultLang) {
+    const lang = typeof meta.lang === 'string' ? meta.lang.trim() : ''
+    return lang || defaultLang
+}
+```
+
+**The language code *is* the suffix — do not add a mapping config.** The tags
+implementation grew a `lang_path_prefixes` key letting each language override
+its URL segment. It was built, documented, tested, and **dropped before
+release**: its only distinguishing power was pointing two languages at one
+output location, which no site can use, since two languages sharing a path or a
+filename would collide in the site's own content long before the plugin got
+involved. The search analogue would be a `lang_index_filenames` map. Do not
+build it. If a site with locale-style codes (`de-DE` served from `/de/`) ever
+turns up, add it then as its own minor bump.
+
+**Group by language, and let the filename be derived.** Tags briefly keyed its
+grouping by *resolved output path* instead of by language, to guarantee two
+languages could never write to one file. Once the segment became the language
+code that was unreachable, and the guard cost ~70 lines that made the code
+describe something more complicated than the feature. A plain
+`Map<lang, pages[]>` is the whole model:
+
+```js
+const byLang = new Map()
+pagesData.forEach(page => {
+    const lang = groupByLang ? getPageLang(page.meta, defaultLang) : defaultLang
+    if (!byLang.has(lang)) byLang.set(lang, [])
+    byLang.get(lang).push(page)
+})
+```
+
+Note the `groupByLang ? … : defaultLang` — with grouping off every page lands in
+one group, so **the existing single-index behaviour is this same code path with
+one entry**, not a parallel branch. That is what let tags keep its entire
+pre-existing test file passing untouched, which is the strongest evidence the
+opt-out path is genuinely unchanged.
+
+**Answer the default-language question explicitly, and answer it the same way.**
+Tags leaves the default language unprefixed (`/tags/…`, with `/de/tags/…` for
+the rest) because one language is served from the site root. The search
+analogue: **the default language keeps the plain `output_filename`**, and only
+other languages get a suffix:
+
+- `search-index.json` (default language, unchanged) ·
+  `search-index.de.json` · `search-index.es.json`
+
+This is not cosmetic here — see the client-side hazard below, where it is the
+whole backward-compatibility mechanism.
+
+**Filename derivation** (the open question above): insert the language before
+the final extension, and append if there is none. `search-index.json` →
+`search-index.de.json`; `searchdata` → `searchdata.de`. `path.parse` gives
+`{ name, ext }` for this in one call, and it is worth a unit test per branch
+because it is the kind of string handling that silently produces
+`search-index.de` (no `.json`) and 404s.
+
+**Keep the hook synchronous.** `index.js` already carries the comment about
+generator 4.3.0 and D2 — writing N files instead of one is not a reason to
+reach for `fs.promises` and `await`. Loop `fs.writeFileSync`.
+
+#### The hazard specific to this plugin
+
+**The shipped client ignores `app.searchIndexPath` entirely.** `views/search.js`
+hardcodes:
+
+```js
+fetch('/search-index.json')
+```
+
+So the config's `output_filename` already only half-works today: rename the
+index and the shipped client still requests the old URL. Per-language indexes
+make this the central problem rather than a latent bug, and it shapes the whole
+design:
+
+- The **template must tell the client which index to load** — the
+  `data-search-index` attribute on `.search__input` floated above is the right
+  shape. Adding an attribute is additive; it renames no BEM class, so it stays
+  a minor bump under the workspace's template rules.
+- **`search.js` must keep a fallback**: `input.dataset.searchIndex ||
+  '/search-index.json'`. Users hold vendored copies of *both* `search.pug` and
+  `search.js` under `views/vendor/plugin-search/`, and `publishTemplates` skips
+  a directory that already exists — so a site that upgrades the package without
+  running `npx nera-search --force` keeps its **old** client and its **old**
+  template. With the default language at the unsuffixed filename, that site
+  degrades to "search works, in the default language" instead of 404ing the
+  index and silently returning no results for everyone. Verify exactly this
+  combination: new plugin + stale vendored templates.
+- Consider fixing the hardcoded URL **first, as its own patch release**, so the
+  per-language work is not also carrying a pre-existing bug. `search.js` has no
+  test coverage at all today (`test/plugin-search.test.js` covers `getAppData`
+  only — 8 tests, none touching the client), so that patch is also the natural
+  place to add the first client-side test.
+
+#### Reconsider the "single index + `lang` field" alternative
+
+The alternative above (one index, filter client-side) looked like the lesser
+option when this was filed. Two things argue for it more strongly now:
+
+- The client already loads the whole index into memory and filters it in JS.
+  Adding `.filter(item => item.lang === pageLang)` is a two-line change to
+  code that already exists, versus a new fetch-URL plumbing path through the
+  template.
+- Adding a field to index entries is additive for anyone who wrote their own
+  client, so it is a clean minor bump on its own.
+
+It still ships every language's text to every visitor — for `nera-website` at
+63 pages that is negligible; for a large site it is the reason to split. A
+defensible sequencing: **ship the `lang` field first** (small, useful
+immediately, unblocks the site), then split files behind `group_by_lang` when
+index size justifies it. Both can coexist — the field is worth including in
+each entry even after splitting, for debugging.
+
+#### What to expose on `app`
+
+Mirror the shape tags settled on, which kept it a minor bump:
+
+- `app.searchIndexPath` keeps its **existing string shape**, pointing at the
+  default language's index. A template or client that never learned about
+  languages keeps working.
+- `app.searchIndexPaths` is the additive `{ en: '/search-index.json', de:
+  '/search-index.de.json' }` map.
+- Per-page, expose the resolved index URL for *that page's* language, so the
+  template can emit the data attribute without doing the lookup itself. Tags
+  did the equivalent with `meta.tagCloud`, and only when `group_by_lang` is on —
+  with grouping off it would be a per-page copy of a global value for no gain.
+  Note this requires a `getMetaData` hook; `plugin-search` currently exports
+  only `getAppData`.
+
+#### Testing
+
+The house pattern (`plugin-tags`, `plugin-navigation`) is a temp directory as
+cwd, a real `config/<name>.yaml` written into it, and the shipped templates
+rendered with pug against real hook output — no generator process. `plugin-tags`
+has 75 tests after this work; the ~18 covering the feature are worth skimming as
+a checklist, since the equivalents mostly transfer:
+
+- one file per language, at the derived filenames, default language unsuffixed
+- entries partitioned correctly — a German page's text absent from the English
+  index, which is the actual bug being fixed
+- pages with no `lang` land in the default language's index
+- **both** `group_by_lang: false` and "no `meta.lang` anywhere" reproduce
+  today's single-index output byte for byte
+- the shipped `search.pug` emits the right index URL for a non-default-language
+  page, asserted through a real pug render
+- stale-vendored-template degradation, per the hazard above
+
+`plugin-search` has an advantage tags did not: it writes real files, so a test
+can assert what landed on disk rather than inferring it from returned metadata.
+Use that — it is the closest thing to end-to-end proof available without running
+the generator.
+
+#### Sequencing with the site
+
+Develop and validate here; wiring `nera-website` is a separate follow-up, for
+the same reason it was for tags — two streams of work editing the same site
+files at once. Note the site's search-related state before assuming defaults:
+it has its own `config/search.yaml`, and its vendored templates under
+`views/vendor/plugin-search/` will need `npx nera-search --force`.
