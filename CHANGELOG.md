@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-07-21
+
+### Fixed
+
+-   the shipped `search.js` no longer hardcodes `/search-index.json`. It reads
+    the index URL from `data-search-index` on the search input, which the
+    shipped `search.pug` fills from `app.searchIndexPath` — so a site that set
+    `output_filename` now loads the index it actually generated. The literal
+    remains as a fallback, so a page whose template predates the attribute
+    keeps working. Sites that published templates before need
+    `npx nera-search --force` to pick this up
+
+
 ## [1.2.0] - 2026-07-21
 
 ### Changed

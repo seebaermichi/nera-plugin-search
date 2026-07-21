@@ -1,14 +1,19 @@
+// The index URL comes from the template (`data-search-index`), which knows the
+// configured `output_filename`. The literal below is only a fallback for a
+// page whose template predates that attribute.
+const DEFAULT_SEARCH_INDEX = '/search-index.json'
+
 document.addEventListener('DOMContentLoaded', () => {
     const inputs = document.querySelectorAll('[data-search-input]')
 
-    fetch('/search-index.json')
-        .then((res) => res.json())
-        .then((data) => {
-            inputs.forEach((input) => {
-                const resultSelector = input.getAttribute('data-results')
-                const resultList = document.querySelector(resultSelector)
-                if (!resultList) return
+    inputs.forEach((input) => {
+        const resultSelector = input.getAttribute('data-results')
+        const resultList = document.querySelector(resultSelector)
+        if (!resultList) return
 
+        fetch(input.dataset.searchIndex || DEFAULT_SEARCH_INDEX)
+            .then((res) => res.json())
+            .then((data) => {
                 input.addEventListener('input', () => {
                     const query = input.value.toLowerCase()
 
@@ -55,5 +60,5 @@ document.addEventListener('DOMContentLoaded', () => {
                     }).join('')
                 })
             })
-        })
+    })
 })

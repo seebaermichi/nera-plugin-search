@@ -1,6 +1,6 @@
 {
     "name": "@nera-static/plugin-search",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "A plugin for the Nera static site generator that builds a JSON search index and provides a client-side search script.",
     "main": "index.js",
     "scripts": {
@@ -54,6 +54,7 @@
     },
     "devDependencies": {
         "eslint": "^9.31.0",
+        "happy-dom": "^20.11.0",
         "husky": "^9.1.7",
         "pug": "^3.0.3",
         "vitest": "^3.2.4"

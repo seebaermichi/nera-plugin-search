@@ -68,6 +68,7 @@ layout: pages/default.pug
     type="search",
     placeholder="Search...",
     data-search-input,
+    data-search-index=app && app.searchIndexPath,
     data-results="[data-search__results]"
   )
 
@@ -138,9 +139,10 @@ Customize freely via your own stylesheets.
   `search-index.json`) — it is **not** fixed at `assets/search-index.json`.
 - `assets/js/search.js`: minimal client-side logic for filtering and rendering,
   copied by the publish command rather than by the render.
-- `app.searchIndexPath`: the index's public URL, added to `app` data. Available
-  to your own templates; the shipped `search.pug` does not use it, since
-  `search.js` resolves the path itself.
+- `app.searchIndexPath`: the index's public URL, added to `app` data. The
+  shipped `search.pug` passes it to the client as `data-search-index`, so a
+  custom `output_filename` is honoured end to end. `search.js` falls back to
+  `/search-index.json` when the attribute is absent.
 
 ### ⚠️ The index is written into your source tree
 

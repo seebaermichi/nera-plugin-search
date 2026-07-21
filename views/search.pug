@@ -1,10 +1,13 @@
 .section.search
   h1.search__title Search
 
+  //- The index URL is passed to the client rather than hardcoded there, so a
+      site that renamed `output_filename` still loads its own index.
   input.search__input(
     type="search",
     placeholder="Search...",
     data-search-input,
+    data-search-index=app && app.searchIndexPath,
     data-results="[data-search__results]"
   )
 
