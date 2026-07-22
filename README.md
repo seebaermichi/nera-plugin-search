@@ -331,12 +331,11 @@ ships no CSS, so `.search__highlight` is invisible until you style it.
   `search-index.json`), so it is **not** fixed at `assets/search-index.json`.
   With `group_by_lang` enabled there is one such file per language.
 
-  The **folder** is `./assets`, because that is the folder Nera copies into
-  `public/` at the end of a render. Setting `folders.assets` in
-  `config/app.yaml` does not move it usefully on Nera 4.4.x and earlier: the
-  plugin honours the key, but the render pipeline copies `./assets` regardless,
-  so the index is written somewhere the built site never serves it from and
-  every search request 404s. Leave `folders.assets` at its default.
+  The **folder** follows `folders.assets` in your `config/app.yaml`, default
+  `./assets` — **on Nera v4.5.0 and later**. Below that, leave the key alone:
+  the plugin honoured it but the render pipeline copied `./assets` regardless,
+  so the index landed somewhere the built site never served it from and every
+  search request 404'd. Fixed in generator v4.5.0.
 - `assets/js/search.js`: minimal client-side logic for filtering and rendering,
   copied by the publish command rather than by the render.
 - `app.searchIndexPath`: the index's public URL, added to `app` data. The

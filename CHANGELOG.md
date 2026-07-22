@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-07-22
+
+### Fixed
+
+-   Generated Output no longer tells you to leave `folders.assets` at its
+    default. Nera v4.5.0 makes the key take effect for the render as well as
+    for plugins, so the index folder does follow it from that version on;
+    below it the advice stands
+
+
 ## [2.0.0] - 2026-07-22
 
 ### Changed
