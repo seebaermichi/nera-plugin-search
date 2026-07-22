@@ -7,12 +7,15 @@ import { getAppData, getMetaData } from '../index.js'
 let cwd
 let originalCwd
 
+// Every fixture page carries a `layout`: the generator renders only those, and
+// since 2.0.0 the index covers only pages that will exist.
 const pagesData = [
     {
         meta: {
             title: 'Search Page',
             href: '/search',
-            excerpt: 'Test description'
+            excerpt: 'Test description',
+            layout: 'pages/default.pug'
         },
         content: '<p>This is the <em>main</em> content</p>'
     }
@@ -137,24 +140,100 @@ describe('plugin-search getAppData()', () => {
     })
 })
 
+// `render.js` writes HTML only for pages whose frontmatter defines `layout`,
+// and plugins run before it. Indexing a page the generator will not render
+// gives results that 404, and publishes the body text of a layout-less draft
+// in a JSON file that *is* copied into public/.
+describe('plugin-search skips pages the generator will not render', () => {
+    const draft = {
+        meta: { title: 'Unpublished draft', href: '/draft' },
+        content: '<p>Confidential until launch</p>'
+    }
+
+    it('omits a page without layout from the index', () => {
+        getAppData({
+            app: { folders: { assets: './assets' } },
+            pagesData: [...pagesData, draft]
+        })
+
+        const json = readIndex()
+        expect(json).toHaveLength(1)
+        expect(json[0].title).toBe('Search Page')
+    })
+
+    it('does not publish the body text of a layout-less page', () => {
+        getAppData({
+            app: { folders: { assets: './assets' } },
+            pagesData: [...pagesData, draft]
+        })
+
+        expect(fs.readFileSync(
+            path.join(cwd, 'assets/search-index.json'), 'utf-8'
+        )).not.toContain('Confidential')
+    })
+
+    it('treats an empty or non-string layout as unrenderable', () => {
+        getAppData({
+            app: { folders: { assets: './assets' } },
+            pagesData: [
+                ...pagesData,
+                { meta: { title: 'Empty', href: '/e', layout: '' }, content: '' }
+            ]
+        })
+
+        expect(readIndex()).toHaveLength(1)
+    })
+
+    it('writes no index for a language whose only pages lack a layout', () => {
+        writeConfig('group_by_lang: true\n')
+
+        const result = getAppData({
+            app: { lang: 'en', folders: { assets: './assets' } },
+            pagesData: [
+                ...pagesData,
+                { meta: { title: 'Entwurf', href: '/de/e', lang: 'de' }, content: '' }
+            ]
+        })
+
+        expect(fs.readdirSync(path.join(cwd, 'assets'))).toEqual([
+            'search-index.json'
+        ])
+        expect(result.searchIndexPaths).toEqual({ en: '/search-index.json' })
+    })
+
+    it('leaves getMetaData untouched — it adds a path, it does not index', () => {
+        writeConfig('group_by_lang: true\n')
+
+        const result = getMetaData({
+            app: { lang: 'en', folders: { assets: './assets' } },
+            pagesData: [...pagesData, draft]
+        })
+
+        expect(result).toHaveLength(2)
+        expect(result[1].meta.searchIndexPath).toBe('/search-index.json')
+    })
+})
+
 const app = { lang: 'en', folders: { assets: './assets' } }
+
+const layout = 'pages/default.pug'
 
 const multilingualPages = [
     {
-        meta: { title: 'Getting started', href: '/start', lang: 'en' },
+        meta: { title: 'Getting started', href: '/start', lang: 'en', layout },
         content: '<p>Install Nera</p>'
     },
     {
-        meta: { title: 'Erste Schritte', href: '/de/start', lang: 'de' },
+        meta: { title: 'Erste Schritte', href: '/de/start', lang: 'de', layout },
         content: '<p>Nera einrichten</p>'
     },
     {
-        meta: { title: 'Primeros pasos', href: '/es/start', lang: 'es' },
+        meta: { title: 'Primeros pasos', href: '/es/start', lang: 'es', layout },
         content: '<p>Instalar Nera</p>'
     },
     {
         // No `lang` — belongs to the site's default language.
-        meta: { title: 'Imprint', href: '/imprint' },
+        meta: { title: 'Imprint', href: '/imprint', layout },
         content: '<p>Legal notice</p>'
     }
 ]

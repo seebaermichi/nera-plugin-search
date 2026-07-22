@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                                     const highlighted = snippet.replace(
                                         new RegExp(`(${query})`, 'ig'),
-                                        '<span class="bg-yellow-100">$1</span>'
+                                        '<span class="search__highlight">$1</span>'
                                     )
                                     item.resultText = `...${highlighted}...`
                                     return true
@@ -51,10 +51,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     resultList.innerHTML = results.map((item) => {
                         const title = item.title || item.href || 'Untitled'
                         const desc = item.excerpt || item.description || item.resultText
+                        // BEM throughout, matching the block the template emits.
+                        // These names are a public contract — sites style them
+                        // from their own CSS, so renaming one is a major.
                         return `
-                            <li class="list-none">
-                                <a class="" href="${item.href}">${title}</a>
-                                ${desc ? `<p class="">${desc}</p>` : ''}
+                            <li class="search__item">
+                                <a class="search__link" href="${item.href}">${title}</a>
+                                ${desc ? `<p class="search__description">${desc}</p>` : ''}
                             </li>
                     `
                     }).join('')

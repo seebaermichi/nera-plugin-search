@@ -92,6 +92,46 @@ describe('shipped search.js client', () => {
         ).toBe('')
     })
 
+    // The class names below are the plugin's public contract: sites style them
+    // from their own CSS. Until 2.0.0 the client emitted `list-none`, two empty
+    // class attributes and a `bg-yellow-100` highlight — none of them the BEM
+    // names the README had documented since 1.0.0.
+    it('emits the documented BEM classes on every result', async () => {
+        const { document } = await runClient(markup())
+
+        type(document, 'install')
+
+        const results = document.querySelector('[data-search__results]')
+        expect(results.querySelectorAll('.search__item')).toHaveLength(1)
+        expect(results.querySelector('.search__link').getAttribute('href'))
+            .toBe('/start')
+        expect(results.querySelector('.search__description')).not.toBe(null)
+    })
+
+    it('wraps the matched term in .search__highlight', async () => {
+        const { document } = await runClient(markup())
+
+        type(document, 'install')
+
+        const highlight = document
+            .querySelector('[data-search__results]')
+            .querySelector('.search__highlight')
+
+        expect(highlight).not.toBe(null)
+        expect(highlight.textContent.toLowerCase()).toBe('install')
+    })
+
+    it('emits no unstyleable or framework class names', async () => {
+        const { document } = await runClient(markup())
+
+        type(document, 'install')
+
+        const html = document.querySelector('[data-search__results]').innerHTML
+        expect(html).not.toContain('list-none')
+        expect(html).not.toContain('bg-yellow-100')
+        expect(html).not.toContain('class=""')
+    })
+
     it('skips an input whose results list does not exist', async () => {
         const { requested } = await runClient(
             '<input data-search-input data-results="[data-missing]">'

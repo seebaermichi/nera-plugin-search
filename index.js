@@ -69,6 +69,19 @@ function getIndexFilenameForLang(lang, options) {
 }
 
 /**
+ * The pages the generator will actually render.
+ *
+ * `render.js` writes HTML only for pages whose frontmatter defines `layout`,
+ * and plugins run before it — so an unfiltered index lists pages that never
+ * exist. Two consequences, both silent: every result for such a page 404s, and
+ * the full body text of a layout-less page (the usual idiom for a draft) is
+ * published verbatim in a JSON file that *is* copied into `public/`.
+ */
+function getIndexablePages(pagesData) {
+    return pagesData.filter(page => Boolean(page?.meta?.layout))
+}
+
+/**
  * Groups pages by the language their content is indexed under.
  *
  * With grouping off every page lands under the default language, so the
@@ -80,7 +93,7 @@ function getIndexFilenameForLang(lang, options) {
 function getPagesByLang(pagesData, options) {
     const byLang = new Map()
 
-    pagesData.forEach(page => {
+    getIndexablePages(pagesData).forEach(page => {
         const lang = options.groupByLang
             ? getPageLang(page.meta, options.defaultLang)
             : options.defaultLang

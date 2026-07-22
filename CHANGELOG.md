@@ -5,6 +5,85 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-07-22
+
+### Changed
+
+-   **BREAKING**: the shipped `search.js` now emits the BEM class names this
+    README has documented since 1.0.0. Each result is
+    `.search__item` > `.search__link` + `.search__description`, and the matched
+    term inside a snippet is wrapped in `.search__highlight`. It previously
+    emitted `list-none` on the item, empty `class` attributes on the link and
+    the description, and a `bg-yellow-100` highlight — a Tailwind utility name
+    from a plugin that ships no Tailwind. Any stylesheet targeting the old
+    names must be updated
+
+### Fixed
+
+-   **BREAKING**: pages without a `layout` in their frontmatter are no longer
+    indexed. The generator renders HTML only for pages that define one
+    (`render.js`), and plugins run before it — so such a page was indexed but
+    never published: every result for it linked to a 404, and its full body
+    text was written verbatim into the index, which *is* copied into `public/`.
+    A layout-less page is the usual idiom for a draft, so this leaked
+    unpublished content. Sites relying on layout-less pages appearing in search
+    results will see them disappear
+-   corrected the README's Usage section, which showed Pug markup directly
+    below a Markdown page's frontmatter. Nera renders `pages/**/*.md` as
+    Markdown, so following it published the entire search UI as escaped text,
+    silently. Usage now shows the real sequence: publish the template, include
+    it from a view, point a Markdown page at that view
+-   corrected the claim that the index location follows `folders.assets` in
+    `config/app.yaml`. The generator's render pipeline copies `./assets`
+    regardless of that key, so setting it wrote the index somewhere the built
+    site never serves from and every search request 404'd
+-   corrected `fields` documentation: setting it **replaces** the default list
+    rather than extending it, `content` is only indexed when listed, and
+    `description` was shown as if it were a default when it is not. The real
+    defaults are now stated
+
+### Added
+
+-   `## 🤝 Contributing` section, linking to the Nera contributing guide
+-   `Plugin Utils` line in Compatibility, and the reason the Nera floor is what
+    it is
+-   Styling section now lists every class the template and the client actually
+    emit, in a table naming which of the two produces each, and states that
+    these names are a public contract
+-   tests covering the emitted class names and the layout-less-page exclusion
+
+### Migration from v1.x
+
+**1. Re-publish the client script.** Nothing else delivers the new markup:
+
+```bash
+npx nera-search --force
+```
+
+`--force` overwrites `views/vendor/plugin-search/search.pug` and
+`assets/js/search.js` wholesale, discarding local edits. If you customised
+either — translated strings in the template are common — diff first, or make
+the one edit by hand in `assets/js/search.js`: the result template near the end
+of the file, plus the highlight `<span>`.
+
+**2. Update your stylesheet.** The rename, in full:
+
+| v1.x | v2.0.0 |
+|---|---|
+| `.list-none` (on the result `<li>`) | `.search__item` |
+| *(no class on the result link)* | `.search__link` |
+| *(no class on the description)* | `.search__description` |
+| `.bg-yellow-100` | `.search__highlight` |
+
+The plugin ships no CSS, so `.search__highlight` renders unstyled until you give
+it a rule — `bg-yellow-100` was equally unstyled unless your site ran Tailwind.
+
+**3. Check for layout-less pages you expected to find in search.** If a page
+should be searchable it must be renderable: give it a `layout`. If it was in the
+index only by accident, nothing to do — but do check whether its content was
+published in an older `search-index.json` you have committed.
+
+
 ## [1.3.0] - 2026-07-21
 
 ### Added
