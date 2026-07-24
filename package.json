@@ -1,6 +1,6 @@
 {
     "name": "@nera-static/plugin-search",
-    "version": "2.0.1",
+    "version": "2.1.0",
     "description": "A plugin for the Nera static site generator that builds a JSON search index and provides a client-side search script.",
     "main": "index.js",
     "scripts": {
@@ -47,7 +47,7 @@
         "access": "public"
     },
     "dependencies": {
-        "@nera-static/plugin-utils": "^1.2.0"
+        "@nera-static/plugin-utils": "^1.5.0"
     },
     "engines": {
         "node": ">=20.0.0"

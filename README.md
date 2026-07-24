@@ -284,6 +284,14 @@ to your local project. You can now edit or extend the search markup freely.
 
 The command also copies the `search.js` file to `assets/js/`. It handles DOM bindings and result generation.
 
+**Both destinations are theme-aware** (requires `@nera-static/plugin-utils`
+>= 1.5.0). On a themed site — one with a local `theme/` folder — the template
+lands in `theme/views/vendor/plugin-search/` and the script in
+`theme/assets/js/`, where the build actually renders and serves from. On a
+legacy site without a theme they fall back to the root `views/` and `assets/`.
+Either way `search.pug` still references `/js/search.js`, since assets are
+served from the site root in both layouts.
+
 Both steps **skip if the destination already exists**, so re-running the command
 never discards your edits. To deliberately overwrite them with the packaged
 versions:

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-07-24
+
+### Changed
+
+-   Publishing the client `search.js` is now theme-aware. It is copied through
+    `publishAsset` from `@nera-static/plugin-utils` >= 1.5.0, so on a themed
+    site (one with a local `theme/` folder) it lands in `theme/assets/js/`,
+    where the build serves from — previously it was always written to the root
+    `assets/js/`, so on a themed site the script ended up where the build never
+    looks and search silently did nothing. Legacy sites without a theme are
+    unaffected: the script still falls back to the root `assets/js/`. The
+    template already published theme-aware via `publishAllTemplates`;
+    `search.pug` still references `/js/search.js`, unchanged, since assets serve
+    from the site root in both layouts.
+
 ## [2.0.1] - 2026-07-22
 
 ### Fixed

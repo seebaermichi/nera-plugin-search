@@ -1,46 +1,29 @@
 #!/usr/bin/env node
 
 import path from 'path'
-import fs from 'fs'
 import { fileURLToPath } from 'url'
-import { publishAllTemplates } from '@nera-static/plugin-utils'
+import { publishAllTemplates, publishAsset } from '@nera-static/plugin-utils'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const pluginName = 'plugin-search'
 const sourceDir = path.resolve(__dirname, '../views/')
 const force = process.argv.includes('--force')
 
-// Publish all pug templates to views/vendor/plugin-search/
-const result = publishAllTemplates({
+// Both destinations are theme-aware (plugin-utils >= 1.5.0): on a themed site
+// the template lands in theme/views/vendor/plugin-search/ and the client script
+// in theme/assets/js/, where the build actually looks; on a legacy site they
+// fall back to the deprecated root views/ and assets/. Same skip-if-exists rule
+// for both, so re-running never discards a user's edits.
+const templatesOk = publishAllTemplates({
     pluginName,
     sourceDir,
     force,
 })
 
-// Also publish search.js into assets/js/. Same skip-if-exists rule as the
-// templates above — re-running this command must not discard user edits.
-const publishSearchJS = () => {
-    const jsSource = path.join(sourceDir, 'search.js')
-    const jsTarget = path.resolve(process.cwd(), 'assets/js/search.js')
+const clientJsOk = publishAsset({
+    sourceFile: path.join(sourceDir, 'search.js'),
+    targetPath: 'js/search.js',
+    force,
+})
 
-    if (fs.existsSync(jsTarget) && !force) {
-        console.log(
-            '⚠️  assets/js/search.js already exists — skipping.\n' +
-            '    Re-run with --force to overwrite (this will discard your edits).'
-        )
-        return true
-    }
-
-    try {
-        fs.mkdirSync(path.dirname(jsTarget), { recursive: true })
-        fs.copyFileSync(jsSource, jsTarget)
-
-        console.log('✓ search.js copied to assets/js/search.js')
-        return true
-    } catch (err) {
-        console.error('✗ Failed to copy search.js to assets/js/', err)
-        return false
-    }
-}
-
-process.exit(result && publishSearchJS() ? 0 : 1)
+process.exit(templatesOk && clientJsOk ? 0 : 1)
