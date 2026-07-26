@@ -5,6 +5,8 @@
 
 A plugin for the [Nera](https://github.com/seebaermichi/nera) static site generator that adds a lightweight client-side search functionality. It builds a searchable JSON index from your content and provides a ready-to-use search interface – all without requiring a backend.
 
+📖 **Documentation:** [nera.js.org](https://nera.js.org)
+
 ## ✨ Features
 
 - Creates a `search-index.json` from page content and metadata
@@ -433,6 +435,7 @@ Michael Becker
 
 - [Plugin Repository](https://github.com/seebaermichi/nera-plugin-search)
 - [NPM Package](https://www.npmjs.com/package/@nera-static/plugin-search)
+- [Nera Website](https://nera.js.org)
 - [Nera Static Site Generator](https://github.com/seebaermichi/nera)
 
 ## 🧩 Compatibility
