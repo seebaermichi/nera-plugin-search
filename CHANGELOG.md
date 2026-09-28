@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-09-28
+
+### Fixed
+
+-   `nera dev` no longer rebuilds in an endless loop. The index is written into
+    the assets folder, which the dev server watches, and it was rewritten on
+    every build even when nothing had changed — each rewrite counted as a
+    change and started the next build. The index file is now left alone unless
+    its contents actually differ.
+
 ## [2.1.0] - 2026-07-24
 
 ### Changed

@@ -130,6 +130,21 @@ function buildIndex(pages, lang, options) {
     })
 }
 
+// The index lives inside the assets folder, which `nera dev` watches. Rewriting
+// an unchanged file still fires a change event, which starts another build,
+// which rewrites the file again — an endless rebuild loop. Leaving the file
+// alone when nothing changed lets the loop settle after one extra build.
+function writeIfChanged(outputPath, content) {
+    try {
+        if (fs.readFileSync(outputPath, 'utf-8') === content) return
+    } catch {
+        // Missing or unreadable — fall through and write it.
+    }
+
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true })
+    fs.writeFileSync(outputPath, content, 'utf-8')
+}
+
 // Must stay synchronous. The generator only started awaiting plugin hooks in
 // 4.3.0, and that fix never reaches already-cloned sites — an async hook there
 // replaces `app` with a Promise, silently wiping every `app.*` value for each
@@ -144,11 +159,9 @@ export function getAppData({ app, pagesData }) {
         const filename = getIndexFilenameForLang(lang, options)
         const outputPath = path.join(assetsFolder, filename)
 
-        fs.mkdirSync(path.dirname(outputPath), { recursive: true })
-        fs.writeFileSync(
+        writeIfChanged(
             outputPath,
-            JSON.stringify(buildIndex(pages, lang, options), null, 2),
-            'utf-8'
+            JSON.stringify(buildIndex(pages, lang, options), null, 2)
         )
 
         searchIndexPaths[lang] = `/${filename}`

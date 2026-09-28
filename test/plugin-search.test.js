@@ -57,6 +57,30 @@ describe('plugin-search getAppData()', () => {
         expect(resultApp.searchIndexPath).toBe('/search-index.json')
     })
 
+    // Regression: `nera dev` watches the assets folder, so rewriting an
+    // unchanged index triggered a rebuild, which rewrote it again, forever.
+    it('does not rewrite an unchanged index', () => {
+        const app = { folders: { assets: './assets' } }
+        const file = path.join(cwd, 'assets/search-index.json')
+
+        getAppData({ app, pagesData })
+        const past = new Date(Date.now() - 60_000)
+        fs.utimesSync(file, past, past)
+        const before = fs.statSync(file).mtimeMs
+
+        getAppData({ app, pagesData })
+        expect(fs.statSync(file).mtimeMs).toBe(before)
+
+        getAppData({
+            app,
+            pagesData: [
+                { ...pagesData[0], meta: { ...pagesData[0].meta, title: 'New' } }
+            ]
+        })
+        expect(fs.statSync(file).mtimeMs).not.toBe(before)
+        expect(readIndex()[0].title).toBe('New')
+    })
+
     // Regression: the generator did not await plugin hooks before 4.3.0, and
     // that fix never reaches already-cloned sites. An async hook there returns
     // a Promise that replaces `app` wholesale, wiping every app.* value.
