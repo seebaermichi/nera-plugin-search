@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2026-10-08
+
+### Fixed
+
+-   The Template Publishing section now says the template check is on the
+    **directory** — a deleted or newly added template is not restored by re-
+    publishing, and the command still exits 0 — while the `search.js` check is
+    on the file itself.
+-   Compatibility: the Plugin Utils range read `^1.2.0`, but the package has
+    required `^1.5.0` (theme-aware publishing) since 2.1.0; the Node line now
+    states `>= 20.0.0`, matching `engines.node`.
+
 ## [2.1.1] - 2026-09-28
 
 ### Fixed

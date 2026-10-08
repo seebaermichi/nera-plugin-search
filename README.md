@@ -294,9 +294,12 @@ legacy site without a theme they fall back to the root `views/` and `assets/`.
 Either way `search.pug` still references `/js/search.js`, since assets are
 served from the site root in both layouts.
 
-Both steps **skip if the destination already exists**, so re-running the command
-never discards your edits. To deliberately overwrite them with the packaged
-versions:
+Both steps **skip if their destination already exists**, so re-running the
+command never discards your edits. For the template the check is on the
+**directory**: if `views/vendor/plugin-search/` exists, nothing in it is copied
+— a deleted or newly added template is not restored, and the command still
+exits 0. For the script it is the file `js/search.js` itself. To deliberately
+overwrite both with the packaged versions:
 
 ```bash
 npx nera-search --force
@@ -444,8 +447,9 @@ Michael Becker
   plugin needs to run last, and v4.3.0 for the `basedir` that makes the
   `include /vendor/plugin-search/search.pug` form in Usage resolve. On v4.2.x,
   use the relative include instead.
-- **Node.js**: >= 20
-- **Plugin Utils**: ^1.2.0
+- **Node.js**: >= 20.0.0
+- **Plugin Utils**: `^1.5.0` — theme-aware publishing of both the template and
+  `search.js` arrived in 1.5.0
 - **Plugin API**: Uses `getAppData()` for index creation and `getMetaData()`
   to expose each page's index path when `group_by_lang` is enabled
 
