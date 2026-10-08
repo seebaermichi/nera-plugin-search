@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.3] - 2026-10-08
+
+### Fixed
+
+-   The README now describes the `theme/` site layout that `nera new` scaffolds.
+    Usage, Template Publishing, the multilingual diagram, Generated Output and
+    the `.gitignore` example pointed at root `views/` and `assets/`; they now
+    show `theme/views/vendor/plugin-search/`, `theme/assets/js/search.js` and
+    `theme/assets/search-index*.json`, with one note for sites still on the
+    root-`views/` layout. The example view extended `../layouts/default`, which
+    a scaffolded site does not have — it now extends `../layouts/layout`.
+    Generated Output explains that the index follows the assets folder Nera
+    resolves, `theme/assets/` on a themed site.
+
 ## [2.1.2] - 2026-10-08
 
 ### Fixed

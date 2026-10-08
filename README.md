@@ -70,8 +70,14 @@ group_by_lang: false
 ## 🧩 Usage
 
 The search markup is **Pug, and belongs in a view** — a layout or a partial
-under `views/`. Nera renders `pages/**/*.md` as Markdown, so Pug pasted into a
-Markdown page is published as literal text, with no error and no warning.
+in your views folder. Nera renders `pages/**/*.md` as Markdown, so Pug pasted
+into a Markdown page is published as literal text, with no error and no warning.
+
+The paths below are for a site scaffolded with `nera new`, whose presentation
+lives in `theme/views/` and `theme/assets/`. On an older site that renders from
+root `views/` and `assets/`, drop the `theme/` prefix — `npx nera-search` picks
+the right destination automatically, and so does the index (see
+[Generated Output](#-generated-output)).
 
 ### 1. Publish the template
 
@@ -79,25 +85,28 @@ Markdown page is published as literal text, with no error and no warning.
 npx nera-search
 ```
 
-This copies `search.pug` to `views/vendor/plugin-search/` and the client script
-to `assets/js/search.js`. See **Template Publishing** below for the
+This copies `search.pug` to `theme/views/vendor/plugin-search/` and the client
+script to `theme/assets/js/search.js`. See **Template Publishing** below for the
 skip-if-exists rule and `--force`.
 
 ### 2. Include it from a view
 
 ```pug
-//- views/pages/search.pug
-extends ../layouts/default
+//- theme/views/pages/search.pug
+extends ../layouts/layout
 
 block content
   article!= content
   include /vendor/plugin-search/search.pug
 ```
 
-The leading slash makes the path resolve from your `views/` folder regardless of
-where the including file sits — Nera compiles templates with `basedir` set, from
-v4.3.0 on. A relative `include ../vendor/plugin-search/search.pug` also works,
-but only from a view exactly one level below `views/`.
+`layouts/layout` is the base layout `nera new` scaffolds; extend your own base
+layout if it is named differently. The leading slash makes the include resolve
+from your views folder (`theme/views/`) regardless of where the including file
+sits — Nera compiles templates with `basedir` set, from v4.3.0 on, and there is
+no `theme/` or `views/` segment in the path. A relative
+`include ../vendor/plugin-search/search.pug` also works, but only from a view
+exactly one level below the views folder.
 
 ### 3. Point a Markdown page at that view
 
@@ -183,9 +192,9 @@ decides which language keeps the unsuffixed filename.
 
 ```
 pages/index.md         lang: en    ─┐
-pages/imprint.md       (no lang)   ─┴─→  assets/search-index.json
-pages/de/index.md      lang: de     ──→  assets/search-index.de.json
-pages/es/index.md      lang: es     ──→  assets/search-index.es.json
+pages/imprint.md       (no lang)   ─┴─→  theme/assets/search-index.json
+pages/de/index.md      lang: de     ──→  theme/assets/search-index.de.json
+pages/es/index.md      lang: es     ──→  theme/assets/search-index.es.json
 ```
 
 ### Filenames
@@ -215,7 +224,7 @@ input.search__input(
 ```
 
 If your site published templates before upgrading, its vendored `search.pug` and
-`assets/js/search.js` keep requesting `/search-index.json`, and search falls
+`theme/assets/js/search.js` keep requesting `/search-index.json`, and search falls
 back to the default language on every page. Refresh them with
 `npx nera-search --force` — but **only if you never edited them**: `--force`
 overwrites your copies wholesale. If they are customised, merge the two changes
@@ -279,12 +288,12 @@ npx nera-search
 This will copy:
 
 ```
-views/vendor/plugin-search/search.pug
+theme/views/vendor/plugin-search/search.pug
 ```
 
 to your local project. You can now edit or extend the search markup freely.
 
-The command also copies the `search.js` file to `assets/js/`. It handles DOM bindings and result generation.
+The command also copies the `search.js` file to `theme/assets/js/`. It handles DOM bindings and result generation.
 
 **Both destinations are theme-aware** (requires `@nera-static/plugin-utils`
 >= 1.5.0). On a themed site — one with a local `theme/` folder — the template
@@ -296,7 +305,7 @@ served from the site root in both layouts.
 
 Both steps **skip if their destination already exists**, so re-running the
 command never discards your edits. For the template the check is on the
-**directory**: if `views/vendor/plugin-search/` exists, nothing in it is copied
+**directory**: if `theme/views/vendor/plugin-search/` exists, nothing in it is copied
 — a deleted or newly added template is not restored, and the command still
 exits 0. For the script it is the file `js/search.js` itself. To deliberately
 overwrite both with the packaged versions:
@@ -306,8 +315,8 @@ npx nera-search --force
 ```
 
 > **A template change only reaches your site when you re-publish.** Upgrading
-> the package is safe but does nothing to `views/vendor/plugin-search/` or
-> `assets/js/search.js` — the published copies are yours, and are left alone.
+> the package is safe but does nothing to `theme/views/vendor/plugin-search/` or
+> `theme/assets/js/search.js` — the published copies are yours, and are left alone.
 > **v2.0.0 changed the class names `search.js` emits**, so a site that published
 > before it keeps the old markup until it runs `--force`. That discards local
 > edits wholesale, so diff first if you have customised either file.
@@ -328,7 +337,7 @@ The template and the client script emit these class names:
 | `.search__description` | `search.js` | the excerpt or match snippet |
 | `.search__highlight` | `search.js` | the matched term inside a snippet |
 
-The last four are written by `assets/js/search.js` at query time, not by the
+The last four are written by `search.js` at query time, not by the
 template — there is no markup in `search.pug` to read them from. The plugin
 ships no CSS, so `.search__highlight` is invisible until you style it.
 
@@ -339,17 +348,19 @@ ships no CSS, so `.search__highlight` is invisible until you style it.
 
 ## 📊 Generated Output
 
-- `assets/<output_filename>`: contains all indexed page data. The filename
-  follows `output_filename` in `config/search.yaml` (default
-  `search-index.json`), so it is **not** fixed at `assets/search-index.json`.
+- `theme/assets/<output_filename>`: contains all indexed page data. The
+  filename follows `output_filename` in `config/search.yaml` (default
+  `search-index.json`), so it is **not** fixed at `search-index.json`.
   With `group_by_lang` enabled there is one such file per language.
 
-  The **folder** follows `folders.assets` in your `config/app.yaml`, default
-  `./assets` — **on Nera v4.5.0 and later**. Below that, leave the key alone:
+  The **folder** is the site's assets folder as Nera resolves it:
+  `theme/assets/` on a site with a `theme/` folder, root `assets/` on an older
+  one, or whatever `folders.assets` in your `config/app.yaml` names — the last
+  **on Nera v4.5.0 and later**. Below that, leave the key alone:
   the plugin honoured it but the render pipeline copied `./assets` regardless,
   so the index landed somewhere the built site never served it from and every
   search request 404'd. Fixed in generator v4.5.0.
-- `assets/js/search.js`: minimal client-side logic for filtering and rendering,
+- `theme/assets/js/search.js`: minimal client-side logic for filtering and rendering,
   copied by the publish command rather than by the render.
 - `app.searchIndexPath`: the index's public URL, added to `app` data. The
   shipped `search.pug` passes it to the client as `data-search-index`, so a
@@ -369,7 +380,7 @@ you probably track in git. To keep it out of version control while still
 serving it, add it to `.gitignore`:
 
 ```
-assets/search-index*.json
+theme/assets/search-index*.json
 ```
 
 Do **not** add it to `.neraignore` — that would stop Nera copying it into
@@ -446,7 +457,8 @@ Michael Becker
 - **Nera**: v4.3.0+ — v4.2.0 for the `config/plugin-order.yaml` ordering this
   plugin needs to run last, and v4.3.0 for the `basedir` that makes the
   `include /vendor/plugin-search/search.pug` form in Usage resolve. On v4.2.x,
-  use the relative include instead.
+  use the relative include instead. The `theme/` folder layout used in the
+  examples — what `nera new` scaffolds — needs v4.6.0+.
 - **Node.js**: >= 20.0.0
 - **Plugin Utils**: `^1.5.0` — theme-aware publishing of both the template and
   `search.js` arrived in 1.5.0
