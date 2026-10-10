@@ -10,6 +10,58 @@ function stripHtml(html) {
     return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
 }
 
+const VOID_ELEMENTS = new Set([
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta',
+    'source', 'track', 'wbr'
+])
+const IGNORED_OPEN_TAG = /<([a-zA-Z][\w-]*)\b[^>]*?\sdata-search-ignore\b[^>]*>/g
+
+/**
+ * Removes every element marked `data-search-ignore`, its content included.
+ *
+ * Plugins that add UI text to `content` — a code block's file name and "Copy"
+ * button — mark it so the words stay out of the index and its excerpts. The
+ * scan counts nested tags of the same name to find the matching close tag;
+ * that is enough for the generated HTML it runs on and avoids pulling a full
+ * HTML parser into a plugin that otherwise only strips tags.
+ */
+function dropIgnoredElements(html) {
+    let result = ''
+    let rest = html
+    let match
+
+    IGNORED_OPEN_TAG.lastIndex = 0
+
+    while ((match = IGNORED_OPEN_TAG.exec(rest))) {
+        const tag = match[1].toLowerCase()
+        const start = match.index
+        let end = start + match[0].length
+
+        if (!VOID_ELEMENTS.has(tag) && !match[0].endsWith('/>')) {
+            const tags = new RegExp(`<(/?)${tag}\\b[^>]*>`, 'gi')
+            let depth = 1
+
+            tags.lastIndex = end
+
+            let next
+            while (depth > 0 && (next = tags.exec(rest))) {
+                if (next[1]) depth -= 1
+                else if (!next[0].endsWith('/>')) depth += 1
+                end = next.index + next[0].length
+            }
+
+            // Unclosed: drop to the end rather than index half an element.
+            if (depth > 0) end = rest.length
+        }
+
+        result += rest.slice(0, start)
+        rest = rest.slice(end)
+        IGNORED_OPEN_TAG.lastIndex = 0
+    }
+
+    return result + rest
+}
+
 // Read per call rather than at module scope: `process.cwd()` is captured at
 // import time otherwise, which is both untestable and wrong for any host that
 // changes directory between import and render.
@@ -114,7 +166,9 @@ function buildIndex(pages, lang, options) {
 
         for (const field of fields) {
             if (field === 'content') {
-                item.content = strip ? stripHtml(content) : content
+                const indexed = dropIgnoredElements(content)
+
+                item.content = strip ? stripHtml(indexed) : indexed
             } else if (meta[field]) {
                 item[field] = meta[field]
             }

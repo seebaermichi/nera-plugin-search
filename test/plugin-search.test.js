@@ -154,6 +154,55 @@ describe('plugin-search getAppData()', () => {
         )
     })
 
+    // A code block's bar ("terminal Copy") used to land in every excerpt.
+    it('drops elements marked data-search-ignore, nested content included', () => {
+        const content = [
+            '<p>Before</p>',
+            '<div class="nera-code">',
+            '<div class="nera-code__bar" data-search-ignore><span>terminal</span>',
+            '<button data-nera-code-copy hidden>Copy</button></div>',
+            '<pre><code>npm install</code></pre>',
+            '</div>',
+            '<div data-search-ignore="">outer <div>inner</div> tail</div>',
+            '<img src="x.png" data-search-ignore alt="Logo">',
+            '<p data-search-ignored-not>kept</p>',
+            '<p>After</p>'
+        ].join('\n')
+
+        getAppData({
+            app: { folders: { assets: './assets' } },
+            pagesData: [{ ...pagesData[0], content }]
+        })
+
+        expect(readIndex()[0].content).toBe('Before npm install kept After')
+    })
+
+    it('drops ignored elements when strip_html is false too', () => {
+        writeConfig('strip_html: false\n')
+
+        getAppData({
+            app: { folders: { assets: './assets' } },
+            pagesData: [{
+                ...pagesData[0],
+                content: '<p>Text</p><span data-search-ignore>Copy</span>'
+            }]
+        })
+
+        expect(readIndex()[0].content).toBe('<p>Text</p>')
+    })
+
+    it('drops an unclosed ignored element to the end', () => {
+        getAppData({
+            app: { folders: { assets: './assets' } },
+            pagesData: [{
+                ...pagesData[0],
+                content: '<p>Text</p><div data-search-ignore>Copy <p>more</p>'
+            }]
+        })
+
+        expect(readIndex()[0].content).toBe('Text')
+    })
+
     it('exposes the single index under the default language too', () => {
         const result = getAppData({
             app: { lang: 'en', folders: { assets: './assets' } },

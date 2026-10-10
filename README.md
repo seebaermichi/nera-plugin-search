@@ -64,6 +64,12 @@ group_by_lang: false
   as the page defines it. A field whose value is empty or missing on a page is
   left off that entry rather than stored as `""`.
 - `strip_html`: If `true`, HTML is removed from content before indexing.
+- Elements marked `data-search-ignore` are left out of `content`, along with
+  everything inside them, whatever `strip_html` says. Use it for UI text that
+  is part of the page body but not part of what it says, such as the file name
+  and Copy button that `@nera-static/plugin-code-blocks` (1.1.0 and later)
+  puts in each code block's bar. In Markdown you can write the attribute on
+  raw HTML: `<aside data-search-ignore>…</aside>`.
 - `group_by_lang`: If `true`, pages are indexed per `meta.lang`. See
   [Multilingual sites](#-multilingual-sites).
 
