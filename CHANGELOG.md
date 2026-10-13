@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-10-13
+
+### Added
+
+-   `show_title` in `config/search.yaml` (default `true`), exposed as
+    `app.searchShowTitle`. Set it to `false` and the shipped `search.pug`
+    leaves out its `h1.search__title`, for a search page that brings its own
+    `h1` (e.g. a `# Search` heading in the Markdown) — `nera build --check`
+    then finds one `h1` instead of warning `a11y-h1`. Without the key the
+    markup is unchanged.
+-   The shipped `search.pug` translates its heading and placeholder through
+    the site's `t()`: `search_title` (default `Search`) and
+    `search_placeholder` (default `Search...`).
+
+### Fixed
+
+-   The shipped `search.pug` gives its search input an accessible name:
+    `aria-label` from the site's `t('search_label')`, falling back to
+    `Search`. `nera build --check` no longer warns `a11y-form-label` for it.
+
+`npx nera-search` skips an existing vendor folder, so a site that published
+the template before keeps its old copy. Refresh it with `npx nera-search --force`
+only if you never edited it; otherwise make the changes by hand (see the
+README's Template Publishing section).
+
 ## [2.2.0] - 2026-10-10
 
 ### Added
