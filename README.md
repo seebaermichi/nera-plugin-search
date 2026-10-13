@@ -165,8 +165,10 @@ warnings:
   Search across the documentation.
   ```
 
-The `placeholder` text stays `Search...`; a placeholder is not an accessible
-name, which is why the `aria-label` is there.
+The template's other two texts translate the same way, each falling back to
+English: `search_title` (the `h1`, default `Search`) and `search_placeholder`
+(default `Search...`). A placeholder is not an accessible name, which is why
+the `aria-label` is there as well.
 
 ### Writing your own markup
 
@@ -370,21 +372,22 @@ npx nera-search --force
 > edits wholesale, so diff first if you have customised either file.
 
 If your site published templates before upgrading to v2.3.0, its vendored
-`search.pug` has no `aria-label` and ignores `show_title`. Refresh it with
+`search.pug` has no `aria-label`, ignores `show_title` and does not translate
+its texts. Refresh it with
 `npx nera-search --force` — but **only if you never edited it**. Otherwise make
 the two changes by hand:
 
 ```pug
-- var searchLabel = typeof t === 'function' && t('search_label')
-- if (typeof searchLabel !== 'string' || !searchLabel.trim() || searchLabel === 'search_label') searchLabel = 'Search'
+- function searchText(key, fallback) { var text = typeof t === 'function' && t(key); return typeof text === 'string' && text.trim() && text !== key ? text : fallback }
+- var searchLabel = searchText('search_label', 'Search')
 
 .section.search
   if !(app && app.searchShowTitle === false)
-    h1.search__title Search
+    h1.search__title= searchText('search_title', 'Search')
 
   input.search__input(
     type="search",
-    placeholder="Search...",
+    placeholder=searchText('search_placeholder', 'Search...'),
     aria-label=searchLabel,
     …
   )
@@ -479,7 +482,7 @@ Every page Nera will render, and nothing else:
 
 ```bash
 npm install
-npm test
+npx vitest run
 npm run lint
 ```
 

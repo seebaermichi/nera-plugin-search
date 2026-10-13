@@ -231,6 +231,25 @@ describe('shipped search.pug template', () => {
         expect(accessibleName(html)).toBe('Suche')
     })
 
+    it('translates the title and placeholder through t()', () => {
+        const html = renderTemplate({
+            app: {},
+            t: coreT({ search_title: 'Suche', search_placeholder: 'Suchen …' })
+        })
+
+        expect(html).toContain('<h1 class="search__title">Suche</h1>')
+        expect(html).toContain('placeholder="Suchen …"')
+    })
+
+    it('keeps the English title and placeholder without translations', () => {
+        const html = renderTemplate({ app: {}, t: coreT({}) })
+
+        expect(html).toContain('<h1 class="search__title">Search</h1>')
+        expect(html).toContain('placeholder="Search..."')
+        expect(html).not.toContain('search_title')
+        expect(html).not.toContain('search_placeholder')
+    })
+
     it('keeps every other input attribute', () => {
         const { document } = new Window()
         document.body.innerHTML = renderTemplate({

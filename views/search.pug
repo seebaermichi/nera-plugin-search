@@ -1,21 +1,21 @@
-//- The input's accessible name comes from the site's `t()`. Core's `t`
-    returns the key itself when no translation exists, and is absent when
-    the template is rendered outside a build, so both fall back to English.
-- var searchLabel = typeof t === 'function' && t('search_label')
-- if (typeof searchLabel !== 'string' || !searchLabel.trim() || searchLabel === 'search_label') searchLabel = 'Search'
+//- The template's texts come from the site's `t()`. Core's `t` returns the
+    key itself when no translation exists, and is absent when the template is
+    rendered outside a build, so both fall back to English.
+- function searchText(key, fallback) { var text = typeof t === 'function' && t(key); return typeof text === 'string' && text.trim() && text !== key ? text : fallback }
+- var searchLabel = searchText('search_label', 'Search')
 
 .section.search
   //- `show_title: false` in config/search.yaml drops the heading, for a page
       that brings its own `h1`.
   if !(app && app.searchShowTitle === false)
-    h1.search__title Search
+    h1.search__title= searchText('search_title', 'Search')
 
   //- The index URL is passed to the client rather than hardcoded there, so a
       site that renamed `output_filename` still loads its own index. With
       `group_by_lang` on, `meta.searchIndexPath` is this page's language.
   input.search__input(
     type="search",
-    placeholder="Search...",
+    placeholder=searchText('search_placeholder', 'Search...'),
     aria-label=searchLabel,
     data-search-input,
     data-search-index=(meta && meta.searchIndexPath) || (app && app.searchIndexPath),
