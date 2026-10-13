@@ -30,3 +30,6 @@ build/
 
 # npm credentials — never commit
 .npmrc
+
+# Browser-test artifacts (Playwright MCP)
+.playwright-mcp/
