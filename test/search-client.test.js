@@ -174,4 +174,91 @@ describe('shipped search.pug template', () => {
         expect(html).not.toContain('data-search-index')
         expect(html).toContain('data-search-input')
     })
+
+    // Core builds `t` per page and returns the key itself when the site has
+    // no translation for it.
+    const coreT = (translations) => (key) => translations[key] || key
+
+    // The check `a11y-form-label` in @nera-static/validate runs: a non-empty
+    // aria-label, aria-labelledby, a <label for> matching the id, or a
+    // wrapping <label>.
+    const accessibleName = (html) => {
+        const { document } = new Window()
+        document.body.innerHTML = html
+        const input = document.querySelector('input.search__input')
+
+        const ariaLabel = (input.getAttribute('aria-label') || '').trim()
+        if (ariaLabel) return ariaLabel
+
+        if (input.getAttribute('aria-labelledby')) {
+            return input.getAttribute('aria-labelledby')
+        }
+
+        const id = input.getAttribute('id')
+        const forLabel = id && document.querySelector(`label[for="${id}"]`)
+        if (forLabel) return forLabel.textContent.trim()
+
+        return input.closest('label')?.textContent.trim() || ''
+    }
+
+    it('names the input "Search" when no t() is passed', () => {
+        const html = renderTemplate({ app: {} })
+
+        expect(html).toContain('aria-label="Search"')
+        expect(accessibleName(html)).toBe('Search')
+    })
+
+    it('falls back to "Search" when t() has no search_label', () => {
+        const html = renderTemplate({ app: {}, t: coreT({}) })
+
+        expect(html).toContain('aria-label="Search"')
+        expect(html).not.toContain('search_label')
+    })
+
+    it('falls back to "Search" when the translation is empty', () => {
+        const html = renderTemplate({ app: {}, t: () => '' })
+
+        expect(accessibleName(html)).toBe('Search')
+    })
+
+    it('names the input from t(\'search_label\')', () => {
+        const html = renderTemplate({
+            app: {},
+            t: coreT({ search_label: 'Suche' })
+        })
+
+        expect(html).toContain('aria-label="Suche"')
+        expect(accessibleName(html)).toBe('Suche')
+    })
+
+    it('keeps every other input attribute', () => {
+        const { document } = new Window()
+        document.body.innerHTML = renderTemplate({
+            app: { searchIndexPath: '/search-index.json' }
+        })
+        const input = document.querySelector('input.search__input')
+
+        expect(input.getAttribute('type')).toBe('search')
+        expect(input.getAttribute('placeholder')).toBe('Search...')
+        expect(input.hasAttribute('data-search-input')).toBe(true)
+        expect(input.getAttribute('data-search-index')).toBe('/search-index.json')
+        expect(input.getAttribute('data-results')).toBe('[data-search__results]')
+    })
+
+    it('renders h1.search__title by default', () => {
+        for (const locals of [{}, { app: {} }, { app: { searchShowTitle: true } }]) {
+            const html = renderTemplate(locals)
+
+            expect(html).toContain('<h1 class="search__title">Search</h1>')
+        }
+    })
+
+    it('leaves out the h1 with app.searchShowTitle false', () => {
+        const html = renderTemplate({ app: { searchShowTitle: false } })
+
+        expect(html).not.toContain('<h1')
+        expect(html).not.toContain('search__title')
+        expect(html).toContain('class="search__input"')
+        expect(html).toContain('class="search__results"')
+    })
 })
