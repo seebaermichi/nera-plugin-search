@@ -108,12 +108,15 @@ skip-if-exists rule and `--force`.
 extends ../layouts/layout
 
 block content
-  article!= content
-  include /vendor/plugin-search/search.pug
+  main
+    article!= content
+    include /vendor/plugin-search/search.pug
 ```
 
 `layouts/layout` is the base layout `nera new` scaffolds; extend your own base
-layout if it is named differently. The leading slash makes the include resolve
+layout if it is named differently. That layout leaves the page's `main` to the
+view (as the scaffolded `pages/default.pug` does), so wrap the content in one, or
+`nera build --check` warns `a11y-main` on the search page. The leading slash makes the include resolve
 from your views folder (`theme/views/`) regardless of where the including file
 sits — Nera compiles templates with `basedir` set, from v4.3.0 on, and there is
 no `theme/` or `views/` segment in the path. A relative
