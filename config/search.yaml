@@ -10,3 +10,8 @@ output_filename: search-index.json
 # false). The default language keeps `output_filename`; every other language
 # gets its code before the extension, e.g. search-index.de.json
 group_by_lang: false
+
+# Render the template's own `h1.search__title` (default: true). Set it to
+# false when the search page brings its own `h1`, e.g. from the Markdown
+# `# Heading`, so `nera build --check` finds exactly one `h1` on the page
+show_title: true

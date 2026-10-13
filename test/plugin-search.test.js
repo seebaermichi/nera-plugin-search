@@ -213,6 +213,43 @@ describe('plugin-search getAppData()', () => {
     })
 })
 
+// The shipped template keeps its own `h1` unless the site opts out, so a site
+// without the key renders exactly what it did before 2.3.0.
+describe('plugin-search show_title', () => {
+    const app = { folders: { assets: './assets' } }
+
+    it('sets searchShowTitle to true without a config file', () => {
+        expect(getAppData({ app, pagesData }).searchShowTitle).toBe(true)
+    })
+
+    it('sets searchShowTitle to true when show_title is absent', () => {
+        writeConfig('fields:\n  - title\n')
+
+        expect(getAppData({ app, pagesData }).searchShowTitle).toBe(true)
+    })
+
+    it('sets searchShowTitle to false with show_title: false', () => {
+        writeConfig('show_title: false\n')
+
+        expect(getAppData({ app, pagesData }).searchShowTitle).toBe(false)
+    })
+
+    it('leaves the index unchanged', () => {
+        getAppData({ app, pagesData })
+        const before = fs.readFileSync(
+            path.join(cwd, 'assets/search-index.json'),
+            'utf-8'
+        )
+
+        writeConfig('show_title: false\n')
+        getAppData({ app, pagesData })
+
+        expect(
+            fs.readFileSync(path.join(cwd, 'assets/search-index.json'), 'utf-8')
+        ).toBe(before)
+    })
+})
+
 // `render.js` writes HTML only for pages whose frontmatter defines `layout`,
 // and plugins run before it. Indexing a page the generator will not render
 // gives results that 404, and publishes the body text of a layout-less draft

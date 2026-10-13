@@ -73,7 +73,10 @@ function loadConfig() {
         stripHtml: config.strip_html ?? true,
         outputFilename: config.output_filename || DEFAULT_OUTPUT_FILENAME,
         // Opt-in: off means one index built from every page, exactly as before.
-        groupByLang: config.group_by_lang === true
+        groupByLang: config.group_by_lang === true,
+        // Opt-out: only an explicit `false` drops the template's own `h1`, so
+        // a site without the key keeps the markup it has always had.
+        showTitle: config.show_title !== false
     }
 }
 
@@ -232,7 +235,10 @@ export function getAppData({ app, pagesData }) {
         )}`,
         // Present in both modes; with grouping off it holds the single index
         // under the default language's key.
-        searchIndexPaths
+        searchIndexPaths,
+        // Read by the shipped `search.pug` to leave out `h1.search__title` on
+        // a page that brings its own `h1`.
+        searchShowTitle: options.showTitle
     }
 }
 
