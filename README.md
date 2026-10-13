@@ -49,6 +49,9 @@ strip_html: true
 
 # Opt-in: one index per language instead of one for the whole site
 group_by_lang: false
+
+# Opt-out: false drops the template's own h1 when the page brings its own
+show_title: true
 ```
 
 ### Field Notes
@@ -72,6 +75,9 @@ group_by_lang: false
   raw HTML: `<aside data-search-ignore>…</aside>`.
 - `group_by_lang`: If `true`, pages are indexed per `meta.lang`. See
   [Multilingual sites](#-multilingual-sites).
+- `show_title`: If `false`, the shipped `search.pug` leaves out its
+  `h1.search__title`. Any other value, or no key, keeps it. See
+  [Heading and label](#heading-and-label).
 
 ## 🧩 Usage
 
@@ -127,6 +133,40 @@ Search across the documentation. Results are generated at build time.
 
 Only the frontmatter and prose live here. A page **without** a `layout` key is
 skipped by the generator entirely — and, since v2.0.0, left out of the index too.
+
+### Heading and label
+
+The shipped template is built to pass `nera build --check` without `a11y-*`
+warnings:
+
+- **The input has an accessible name.** It carries
+  `aria-label=t('search_label')`, falling back to `Search` when the site has no
+  translation for that key (or the template is rendered outside a build). To
+  translate it, add a `search_label` key to the site's translations, e.g. for
+  German `search_label: Suche`.
+- **One `h1` per page.** By default the template renders its own
+  `h1.search__title`, which suits a page whose Markdown has no heading, as in
+  step 3. If the page brings its own `h1` — usually a `# Search` heading in the
+  Markdown — turn the template's off, or `nera build --check` warns `a11y-h1`:
+
+  ```yaml
+  # config/search.yaml
+  show_title: false
+  ```
+
+  ```markdown
+  ---
+  title: Search
+  layout: pages/search.pug
+  ---
+
+  # Search
+
+  Search across the documentation.
+  ```
+
+The `placeholder` text stays `Search...`; a placeholder is not an accessible
+name, which is why the `aria-label` is there.
 
 ### Writing your own markup
 
@@ -250,6 +290,8 @@ by hand instead:
   '/search-index.de.json', … }`. Present in both modes.
 - `meta.searchIndexPath` is added to every page, only when `group_by_lang` is
   enabled.
+- `app.searchShowTitle` is `false` when `config/search.yaml` sets
+  `show_title: false`, `true` otherwise. Present in both modes.
 - Each index entry carries a `lang` field, again only when grouping is on. The
   shipped client does not need it — the split already scopes results — but it
   lets a custom client load one index and filter, and it makes a
@@ -327,6 +369,27 @@ npx nera-search --force
 > before it keeps the old markup until it runs `--force`. That discards local
 > edits wholesale, so diff first if you have customised either file.
 
+If your site published templates before upgrading to v2.3.0, its vendored
+`search.pug` has no `aria-label` and ignores `show_title`. Refresh it with
+`npx nera-search --force` — but **only if you never edited it**. Otherwise make
+the two changes by hand:
+
+```pug
+- var searchLabel = typeof t === 'function' && t('search_label')
+- if (typeof searchLabel !== 'string' || !searchLabel.trim() || searchLabel === 'search_label') searchLabel = 'Search'
+
+.section.search
+  if !(app && app.searchShowTitle === false)
+    h1.search__title Search
+
+  input.search__input(
+    type="search",
+    placeholder="Search...",
+    aria-label=searchLabel,
+    …
+  )
+```
+
 ## 🎨 Styling
 
 The template and the client script emit these class names:
@@ -335,7 +398,7 @@ The template and the client script emit these class names:
 |---|---|---|
 | `.section` | `search.pug` | the wrapper |
 | `.search` | `search.pug` | the wrapper |
-| `.search__title` | `search.pug` | the heading |
+| `.search__title` | `search.pug` | the heading — only while `show_title` is not `false` |
 | `.search__input` | `search.pug` | the search field |
 | `.search__results` | `search.pug` | the results list |
 | `.search__item` | `search.js` | one result |
@@ -374,6 +437,8 @@ ships no CSS, so `.search__highlight` is invisible until you style it.
   `/search-index.json` when the attribute is absent.
 - `app.searchIndexPaths` and `meta.searchIndexPath`: see
   [Multilingual sites](#-multilingual-sites).
+- `app.searchShowTitle`: `false` when `show_title: false`, else `true`; the
+  shipped `search.pug` renders `h1.search__title` unless it is `false`.
 
 ### ⚠️ The index is written into your source tree
 
@@ -430,7 +495,8 @@ Tests use [Vitest](https://vitest.dev) and cover:
 - That pages without a `layout` are excluded, and their content never reaches
   the index
 - The shipped `search.pug` and `search.js`, rendered and run against a DOM,
-  including the exact class names the client emits
+  including the exact class names the client emits, the input's accessible
+  name and the optional heading
 
 ## 🤝 Contributing
 
