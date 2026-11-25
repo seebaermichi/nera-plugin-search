@@ -5,7 +5,7 @@ import pug from 'pug'
 import { Window } from 'happy-dom'
 
 // The shipped client is a plain browser script, not a module. It is run with
-// `document` and `fetch` passed in as parameters so each test gets its own
+// `document`, `fetch` and `DOMParser` passed in as parameters so each test gets its own
 // window and its own request log, instead of sharing one global document.
 const clientSource = fs.readFileSync(
     path.resolve('views/search.js'),
@@ -20,7 +20,7 @@ const index = [
     { title: 'Erste Schritte', href: '/de/start', content: 'Zuerst Nera einrichten' }
 ]
 
-const runClient = async (html) => {
+const runClient = async (html, entries = index) => {
     const window = new Window()
     const { document } = window
     document.body.innerHTML = html
@@ -29,10 +29,14 @@ const runClient = async (html) => {
     const fetchStub = (url) => {
         requested.push(url)
 
-        return Promise.resolve({ json: () => Promise.resolve(index) })
+        return Promise.resolve({ json: () => Promise.resolve(entries) })
     }
 
-    new Function('document', 'fetch', clientSource)(document, fetchStub)
+    new Function('document', 'fetch', 'DOMParser', clientSource)(
+        document,
+        fetchStub,
+        window.DOMParser
+    )
     document.dispatchEvent(new window.Event('DOMContentLoaded'))
 
     // Let the fetch chain settle before anything is asserted.
@@ -132,12 +136,283 @@ describe('shipped search.js client', () => {
         expect(html).not.toContain('class=""')
     })
 
+    // Pinned before the escaping went in: a plain title and snippet must come
+    // out exactly as 2.3.1 built them.
+    it('renders an ordinary result exactly as before', async () => {
+        const { document } = await runClient(markup())
+
+        type(document, 'install')
+
+        const html = document.querySelector('[data-search__results]').innerHTML
+        expect(html.replace(/\s+/g, ' ').trim()).toBe(
+            '<li class="search__item"> ' +
+            '<a class="search__link" href="/start">Getting started</a> ' +
+            '<p class="search__description">...<span class="search__highlight">Install</span> Nera first...</p> ' +
+            '</li>'
+        )
+    })
+
+    // Until 2.4.0 the snippet was stored on the index entry and searched by
+    // the next query, so a query for the highlight markup itself matched.
+    it('does not match the markup of an earlier snippet', async () => {
+        const { document } = await runClient(markup())
+
+        type(document, 'install')
+        type(document, 'highlight')
+
+        expect(
+            document.querySelectorAll('[data-search__results] .search__item')
+        ).toHaveLength(0)
+    })
+
     it('skips an input whose results list does not exist', async () => {
         const { requested } = await runClient(
             '<input data-search-input data-results="[data-missing]">'
         )
 
         expect(requested).toEqual([])
+    })
+})
+
+const resultItems = (document) =>
+    document.querySelectorAll('[data-search__results] .search__item')
+
+const emptyStates = (document) => document.querySelectorAll('.search__empty')
+
+describe('no-results message', () => {
+    it('shows one .search__empty with the attribute text after the list', async () => {
+        const { document } = await runClient(
+            markup('data-search-empty="Keine Treffer"')
+        )
+
+        type(document, 'zzz')
+
+        const states = emptyStates(document)
+        expect(states).toHaveLength(1)
+        expect(states[0].tagName).toBe('P')
+        expect(states[0].hidden).toBe(false)
+        expect(states[0].textContent).toBe('Keine Treffer')
+        expect(
+            document.querySelector('[data-search__results]').nextElementSibling
+        ).toBe(states[0])
+        expect(resultItems(document)).toHaveLength(0)
+    })
+
+    it('falls back to "No results" without the attribute', async () => {
+        const { document } = await runClient(markup())
+
+        type(document, 'zzz')
+
+        expect(emptyStates(document)[0].textContent).toBe('No results')
+        expect(emptyStates(document)[0].hidden).toBe(false)
+    })
+
+    it('stays hidden before the first query', async () => {
+        const { document } = await runClient(markup())
+
+        expect(emptyStates(document)).toHaveLength(1)
+        expect(emptyStates(document)[0].hidden).toBe(true)
+    })
+
+    it('hides again for an empty query and for a later match', async () => {
+        const { document } = await runClient(markup())
+        const state = () => emptyStates(document)[0]
+
+        type(document, 'zzz')
+        type(document, '')
+        expect(state().hidden).toBe(true)
+
+        type(document, 'zzz')
+        type(document, 'install')
+        expect(state().hidden).toBe(true)
+        expect(resultItems(document)).toHaveLength(1)
+    })
+
+    it('never adds a second element on repeated no-match queries', async () => {
+        const { document } = await runClient(markup())
+
+        for (const query of ['zzz', 'zzzz', '', 'qqq', 'install', 'xyz']) {
+            type(document, query)
+        }
+
+        expect(emptyStates(document)).toHaveLength(1)
+        expect(emptyStates(document)[0].hidden).toBe(false)
+    })
+
+    it('leaves the results list itself empty', async () => {
+        const { document } = await runClient(markup())
+
+        type(document, 'zzz')
+
+        expect(
+            document.querySelector('[data-search__results]').innerHTML
+        ).toBe('')
+    })
+
+    it('sets the text as text, not as HTML', async () => {
+        const { document } = await runClient(
+            markup('data-search-empty="&lt;b&gt;none&lt;/b&gt;"')
+        )
+
+        type(document, 'zzz')
+
+        const state = emptyStates(document)[0]
+        expect(state.textContent).toBe('<b>none</b>')
+        expect(state.querySelector('b')).toBe(null)
+    })
+
+    it('gives each input its own element', async () => {
+        const { document } = await runClient(`
+            <input data-search-input data-results="[data-a]">
+            <ul data-a></ul>
+            <input data-search-input data-results="[data-b]">
+            <ul data-b></ul>
+        `)
+
+        expect(emptyStates(document)).toHaveLength(2)
+        expect(document.querySelector('[data-a]').nextElementSibling.className)
+            .toBe('search__empty')
+        expect(document.querySelector('[data-b]').nextElementSibling.className)
+            .toBe('search__empty')
+    })
+})
+
+describe('query and index text are literal', () => {
+    const highlights = (document) => [
+        ...document.querySelectorAll('[data-search__results] .search__highlight')
+    ].map((node) => node.textContent)
+
+    for (const char of ['(', '[', '*', '+', '?', '.', '\\', '$', '|']) {
+        it(`highlights ${char} literally and keeps responding`, async () => {
+            const { document } = await runClient(markup(), [
+                { title: 'Syntax', href: '/syntax', content: `a ${char} b` },
+                ...index
+            ])
+
+            expect(() => type(document, char)).not.toThrow()
+            expect(resultItems(document)).toHaveLength(1)
+            expect(highlights(document)).toEqual([char])
+
+            type(document, 'install')
+            expect(resultItems(document)).toHaveLength(1)
+            expect(
+                document.querySelector('.search__link').getAttribute('href')
+            ).toBe('/start')
+        })
+    }
+
+    it('escapes the title, href and excerpt', async () => {
+        const { document } = await runClient(markup(), [{
+            title: 'A <b> & "C"',
+            href: '/a"b',
+            excerpt: 'x < y <img src=x>',
+            content: 'needle'
+        }])
+
+        type(document, 'needle')
+
+        const link = document.querySelector('.search__link')
+        expect(link.textContent).toBe('A <b> & "C"')
+        expect(link.querySelector('b')).toBe(null)
+        expect(link.getAttribute('href')).toBe('/a"b')
+
+        const desc = document.querySelector('.search__description')
+        expect(desc.textContent).toBe('x < y <img src=x>')
+        expect(desc.querySelector('img')).toBe(null)
+    })
+
+    it('escapes the description field too', async () => {
+        const { document } = await runClient(markup(), [{
+            title: 'T',
+            href: '/t',
+            description: '<i>raw</i>',
+            content: 'needle'
+        }])
+
+        type(document, 'needle')
+
+        const desc = document.querySelector('.search__description')
+        expect(desc.textContent).toBe('<i>raw</i>')
+        expect(desc.querySelector('i')).toBe(null)
+    })
+
+    // `content` is what the plugin really indexes: markdown-it output with
+    // the tags stripped and the entities kept.
+    it('shows the entities of the indexed content as characters', async () => {
+        const { document } = await runClient(markup(), [{
+            title: 'T',
+            href: '/t',
+            content: 'It&#39;s: find (pages) &amp; things. Say &quot;hi&quot; &lt;b&gt;'
+        }])
+
+        type(document, 'pages')
+
+        const desc = document.querySelector('.search__description')
+        expect(desc.textContent).toBe(
+            '...It\'s: find (pages) & things. Say "hi" <b>...'
+        )
+        expect(desc.querySelector('b')).toBe(null)
+        expect(highlights(document)).toEqual(['pages'])
+    })
+
+    it('matches & against the encoded content and highlights it once', async () => {
+        const { document } = await runClient(markup(), [{
+            title: 'T',
+            href: '/t',
+            content: 'salt &amp; pepper'
+        }])
+
+        type(document, '&')
+
+        const desc = document.querySelector('.search__description')
+        expect(highlights(document)).toEqual(['&'])
+        expect(desc.textContent).toBe('...salt & pepper...')
+        // Escaping before the split would leave `&amp;` as visible text.
+        expect(desc.innerHTML).toContain(
+            '<span class="search__highlight">&amp;</span>'
+        )
+        expect(desc.innerHTML).not.toContain('&amp;amp;')
+    })
+
+    it('does not match the entity names themselves', async () => {
+        const { document } = await runClient(markup(), [{
+            title: 'T',
+            href: '/t',
+            content: 'salt &amp; pepper'
+        }])
+
+        type(document, 'amp')
+
+        expect(resultItems(document)).toHaveLength(0)
+    })
+
+    // `strip_html: false` indexes raw HTML: it shows as text without its tags.
+    it('renders raw-HTML content as text without its tags', async () => {
+        const { document } = await runClient(markup(), [{
+            title: 'T',
+            href: '/t',
+            content: '<p>x &amp; <em>needle</em></p> <script>alert(1)</script>'
+        }])
+
+        type(document, 'needle')
+
+        const desc = document.querySelector('.search__description')
+        expect(desc.textContent).toBe('...x & needle alert(1)...')
+        expect(desc.querySelector('em')).toBe(null)
+        expect(desc.querySelector('script')).toBe(null)
+        expect(highlights(document)).toEqual(['needle'])
+    })
+
+    it('does not match the tag names of raw-HTML content', async () => {
+        const { document } = await runClient(markup(), [{
+            title: 'T',
+            href: '/t',
+            content: '<em>needle</em>'
+        }])
+
+        type(document, 'em')
+
+        expect(resultItems(document)).toHaveLength(0)
     })
 })
 
@@ -303,18 +578,38 @@ describe('shipped search.pug template', () => {
         expect(html).toContain('class="search__results"')
     })
 
+    it('passes the no-results text to the client', () => {
+        expect(renderTemplate({ app: {} }))
+            .toContain('data-search-empty="No results"')
+        expect(renderTemplate({ app: {}, t: coreT({}) }))
+            .toContain('data-search-empty="No results"')
+        expect(renderTemplate({ app: {}, t: () => ' ' }))
+            .toContain('data-search-empty="No results"')
+        expect(renderTemplate({
+            app: {},
+            t: coreT({ search_no_results: 'Keine Treffer' })
+        })).toContain('data-search-empty="Keine Treffer"')
+    })
+
     // Rendered from the 2.3.1 template (`git show v2.3.1:views/search.pug`)
     // with `{ app: {} }`, so the comparison is against the released markup,
-    // not against a string written from the new template.
-    it('renders byte-identical to 2.3.1 without the option', () => {
+    // not against a string written from the new template. The one
+    // difference is the additive `data-search-empty` attribute of 2.4.0.
+    it('renders like 2.3.1 plus data-search-empty without the option', () => {
         const released = fs.readFileSync(
             path.resolve('test/fixtures/search-2.3.1.html'),
             'utf-8'
         )
+        const resultsAttribute = 'data-results="[data-search__results]"'
+        expect(released).toContain(resultsAttribute)
+        const expected = released.replace(
+            resultsAttribute,
+            `${resultsAttribute} data-search-empty="No results"`
+        )
 
-        expect(renderTemplate({ app: {} })).toBe(released)
+        expect(renderTemplate({ app: {} })).toBe(expected)
         expect(renderTemplate({ app: { searchIncludeScript: true } })).toBe(
-            released
+            expected
         )
     })
 })

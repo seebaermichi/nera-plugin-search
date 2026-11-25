@@ -52,6 +52,9 @@ group_by_lang: false
 
 # Opt-out: false drops the template's own h1 when the page brings its own
 show_title: true
+
+# Opt-out: false drops the template's own script when the site loads it itself
+include_script: true
 ```
 
 ### Field Notes
@@ -78,6 +81,11 @@ show_title: true
 - `show_title`: If `false`, the shipped `search.pug` leaves out its
   `h1.search__title`. Any other value, or no key, keeps it. See
   [Heading and label](#heading-and-label).
+- `include_script`: If `false`, the shipped `search.pug` leaves out its
+  `script(src="/js/search.js")`, for a site that loads the client itself —
+  e.g. through a theme's `scripts-extra` seam — so the page does not load it
+  twice. Any other value, or no key, keeps it. The site still has to serve
+  `/js/search.js`; see **Template Publishing** below.
 
 ## 🧩 Usage
 
@@ -168,10 +176,21 @@ warnings:
   Search across the documentation.
   ```
 
-The template's other two texts translate the same way, each falling back to
-English: `search_title` (the `h1`, default `Search`) and `search_placeholder`
-(default `Search...`). A placeholder is not an accessible name, which is why
-the `aria-label` is there as well.
+The template's other texts translate the same way, each falling back to
+English: `search_title` (the `h1`, default `Search`), `search_placeholder`
+(default `Search...`) and `search_no_results` (the message shown when a query
+matches nothing, default `No results`). A placeholder is not an accessible
+name, which is why the `aria-label` is there as well.
+
+```yaml
+# config/app.yaml
+translations:
+  de:
+    search_label: Suche
+    search_title: Suche
+    search_placeholder: Suchen …
+    search_no_results: Keine Treffer
+```
 
 ### Writing your own markup
 
@@ -185,7 +204,8 @@ input.search__input(
   placeholder="Search...",
   data-search-input,
   data-search-index=(meta && meta.searchIndexPath) || (app && app.searchIndexPath),
-  data-results="[data-search__results]"
+  data-results="[data-search__results]",
+  data-search-empty="No results"
 )
 
 ul.search__results(data-search__results)
@@ -195,6 +215,8 @@ script(src="/js/search.js")
 
 Keep the `data-search-index` attribute: it carries the configured
 `output_filename`, and the page's own language when `group_by_lang` is on.
+`data-search-empty` is optional: it is the text `search.js` puts into the
+`p.search__empty` it adds right after the list (default `No results`).
 Multiple search inputs per page work as long as each points `[data-results]` at
 a different list.
 
@@ -215,7 +237,28 @@ Each match renders as one list item:
 ```
 
 The description is the entry's `excerpt`, then its `description`, then a snippet
-built around the match, whichever exists first.
+built around the match, whichever exists first. Every piece of index text — the
+title, the href, the description and the snippet — is inserted as text, not as
+markup: a title `A <b> & "C"` shows exactly that. The indexed `content` keeps
+the HTML entities of the rendered page (`&amp;`, `&quot;`), so the client
+decodes it to plain text first: a page text `Find (pages) & things.` shows and
+matches as written. With `strip_html: false` the indexed content is raw HTML,
+and a snippet then shows its text without the tags. The query is matched
+literally too, so `(`, `*` or `.` find themselves.
+
+When a non-empty query matches nothing, the list stays empty and the client
+shows one message right after it, created once per input and toggled with
+`hidden`:
+
+```html
+<ul class="search__results" data-search__results></ul>
+<p class="search__empty">No results</p>
+```
+
+Its text is the input's `data-search-empty`, which the shipped template fills
+from `t('search_no_results')`. An empty query, or one that matches, hides it
+again. Because the message is outside the list, a theme rule on
+`.search__results:empty` keeps working.
 
 ## 🌍 Multilingual sites
 
@@ -297,6 +340,8 @@ by hand instead:
   enabled.
 - `app.searchShowTitle` is `false` when `config/search.yaml` sets
   `show_title: false`, `true` otherwise. Present in both modes.
+- `app.searchIncludeScript` is `false` when `config/search.yaml` sets
+  `include_script: false`, `true` otherwise. Present in both modes.
 - Each index entry carries a `lang` field, again only when grouping is on. The
   shipped client does not need it — the split already scopes results — but it
   lets a custom client load one index and filter, and it makes a
@@ -396,6 +441,32 @@ the two changes by hand:
   )
 ```
 
+If your site published templates before upgrading to v2.4.0, its vendored
+`search.pug` ignores `include_script` and passes no translated no-results text,
+and its `search.js` shows no message for an empty result, matches `(` or `*` as
+RegExp syntax and inserts index text as markup. Refresh both with
+`npx nera-search --force` — but **only if you never edited them**. Otherwise
+replace `theme/assets/js/search.js` with the packaged one if you never changed
+it, and make the template changes by hand:
+
+```pug
+  input.search__input(
+    …
+    data-results="[data-search__results]",
+    data-search-empty=searchText('search_no_results', 'No results')
+  )
+
+  ul.search__results(data-search__results)
+
+if !(app && app.searchIncludeScript === false)
+  script(src="/js/search.js")
+```
+
+With `include_script: false` the page no longer loads the client from the
+template, so load `/js/search.js` yourself — from a theme's `scripts-extra`
+seam, for example. `npx nera-search` still copies the script to
+`theme/assets/js/search.js`.
+
 ## 🎨 Styling
 
 The template and the client script emit these class names:
@@ -411,8 +482,9 @@ The template and the client script emit these class names:
 | `.search__link` | `search.js` | the result's link |
 | `.search__description` | `search.js` | the excerpt or match snippet |
 | `.search__highlight` | `search.js` | the matched term inside a snippet |
+| `.search__empty` | `search.js` | the message after the list when a query matches nothing (`hidden` otherwise) |
 
-The last four are written by `search.js` at query time, not by the
+The last five are written by `search.js` at query time, not by the
 template — there is no markup in `search.pug` to read them from. The plugin
 ships no CSS, so `.search__highlight` is invisible until you style it.
 
@@ -445,6 +517,8 @@ ships no CSS, so `.search__highlight` is invisible until you style it.
   [Multilingual sites](#-multilingual-sites).
 - `app.searchShowTitle`: `false` when `show_title: false`, else `true`; the
   shipped `search.pug` renders `h1.search__title` unless it is `false`.
+- `app.searchIncludeScript`: `false` when `include_script: false`, else
+  `true`; the shipped `search.pug` renders its `script` unless it is `false`.
 
 ### ⚠️ The index is written into your source tree
 

@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-11-25
+
+### Added
+
+-   `include_script` in `config/search.yaml` (default `true`), exposed as
+    `app.searchIncludeScript`. Set it to `false` and the shipped `search.pug`
+    leaves out its `script(src="/js/search.js")`, for a site that loads the
+    client itself, e.g. through a theme's `scripts-extra` seam. Without the
+    key the script renders exactly as before.
+-   A no-results message: when a non-empty query matches nothing, `search.js`
+    shows one `p.search__empty` right after `ul.search__results` (created once
+    per input, toggled with `hidden`, hidden again for an empty query or a
+    match). Its text comes from the input's new `data-search-empty`
+    attribute, which the shipped `search.pug` fills from the site's
+    `t('search_no_results')`, falling back to `No results`. `.search__empty`
+    is a new public class name.
+
+### Fixed
+
+-   `search.js` matches the query literally: a query containing `(`, `[`,
+    `*`, `+`, `?`, `\` or another RegExp metacharacter threw a `SyntaxError`
+    and stopped the search from responding, and `.` highlighted any
+    character.
+-   `search.js` inserts the title, href, description and match snippet as
+    text, not as markup, so a title such as `A <b> & "C"` renders as written
+    and an href cannot break out of its attribute. Text without `<`, `&` or
+    quotes renders unchanged. The indexed `content` still holds the page's
+    HTML entities (`&amp;`, `&quot;`), so the client decodes it to plain text
+    before matching: a page text `Find (pages) & things.` shows `&`, and a
+    query `&` or `"` matches it. The index itself is unchanged. With
+    `strip_html: false` the indexed content is raw HTML, and a snippet built
+    from it now shows its text without the tags instead of rendering them.
+-   `search.js` no longer stores the match snippet on the index entry, where
+    the next query searched it too and matched its highlight markup.
+
+`npx nera-search` skips an existing vendor folder, so a site that published
+the template before keeps its old copies, which have none of the above.
+Refresh them with `npx nera-search --force` only if you never edited them;
+otherwise make the changes by hand (see the README's Template Publishing
+section).
+
 ## [2.3.1] - 2026-10-13
 
 ### Fixed
