@@ -15,9 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     client itself, e.g. through a theme's `scripts-extra` seam. Without the
     key the script renders exactly as before.
 -   A no-results message: when a non-empty query matches nothing, `search.js`
-    shows one `p.search__empty` right after `ul.search__results` (created once
-    per input, toggled with `hidden`, hidden again for an empty query or a
-    match). Its text comes from the input's new `data-search-empty`
+    shows one `p.search__empty` right after `ul.search__results`. It is
+    created once per input as soon as the index has loaded, `hidden` and
+    empty, and carries `role="status"`, so a screen reader announces the
+    message; an empty query or a match hides it again and clears its text.
+    Its text comes from the input's new `data-search-empty`
     attribute, which the shipped `search.pug` fills from the site's
     `t('search_no_results')`, falling back to `No results`. `.search__empty`
     is a new public class name.
@@ -36,7 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     before matching: a page text `Find (pages) & things.` shows `&`, and a
     query `&` or `"` matches it. The index itself is unchanged. With
     `strip_html: false` the indexed content is raw HTML, and a snippet built
-    from it now shows its text without the tags instead of rendering them.
+    from it now shows its text without the tags instead of rendering them,
+    with a space between blocks (`<p>a</p><p>b</p>` reads `a b`, and a query
+    `ab` no longer matches across them).
 -   `search.js` no longer stores the match snippet on the index entry, where
     the next query searched it too and matched its highlight markup.
 

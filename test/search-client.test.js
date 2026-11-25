@@ -207,11 +207,39 @@ describe('no-results message', () => {
         expect(emptyStates(document)[0].hidden).toBe(false)
     })
 
-    it('stays hidden before the first query', async () => {
+    // A live region announces a text change only when it is already in the
+    // DOM, so the element exists, empty, before the first query.
+    it('exists as an empty, hidden role="status" before the first query', async () => {
         const { document } = await runClient(markup())
 
+        const states = emptyStates(document)
+        expect(states).toHaveLength(1)
+        expect(states[0].hidden).toBe(true)
+        expect(states[0].getAttribute('role')).toBe('status')
+        expect(states[0].textContent).toBe('')
+    })
+
+    it('clears its text when hidden by a match or an empty query', async () => {
+        const { document } = await runClient(
+            markup('data-search-empty="Keine Treffer"')
+        )
+        const state = () => emptyStates(document)[0]
+
+        type(document, 'zzz')
+        expect(state().textContent).toBe('Keine Treffer')
+
+        type(document, 'install')
+        expect(state().hidden).toBe(true)
+        expect(state().textContent).toBe('')
+
+        type(document, 'zzz')
+        expect(state().textContent).toBe('Keine Treffer')
+
+        type(document, '')
+        expect(state().hidden).toBe(true)
+        expect(state().textContent).toBe('')
         expect(emptyStates(document)).toHaveLength(1)
-        expect(emptyStates(document)[0].hidden).toBe(true)
+        expect(state().getAttribute('role')).toBe('status')
     })
 
     it('hides again for an empty query and for a later match', async () => {
@@ -401,6 +429,51 @@ describe('query and index text are literal', () => {
         expect(desc.querySelector('em')).toBe(null)
         expect(desc.querySelector('script')).toBe(null)
         expect(highlights(document)).toEqual(['needle'])
+    })
+
+    it('puts a space between the blocks of raw-HTML content', async () => {
+        const { document } = await runClient(markup(), [{
+            title: 'T',
+            href: '/t',
+            content: '<p>a</p><p>b</p>\n<ul><li>needle</li></ul>'
+        }])
+
+        type(document, 'needle')
+
+        expect(document.querySelector('.search__description').textContent)
+            .toBe('...a b needle...')
+    })
+
+    it('does not match across two raw-HTML blocks', async () => {
+        const { document } = await runClient(markup(), [{
+            title: 'T',
+            href: '/t',
+            content: '<p>a</p><p>b</p>'
+        }])
+
+        type(document, 'ab')
+        expect(resultItems(document)).toHaveLength(0)
+
+        type(document, 'a b')
+        expect(resultItems(document)).toHaveLength(1)
+    })
+
+    // Default mode indexes one text node per page: its inner whitespace is
+    // kept as it was, not collapsed, so matching works exactly as before.
+    it('decodes entity-encoded content exactly as before', async () => {
+        const { document } = await runClient(markup(), [{
+            title: 'T',
+            href: '/t',
+            content: 'salt  &amp;\npepper &lt;b&gt;'
+        }])
+
+        type(document, 'salt')
+
+        expect(document.querySelector('.search__description').textContent)
+            .toBe('...salt & pepper <b>...')
+
+        type(document, 'salt  &')
+        expect(resultItems(document)).toHaveLength(1)
     })
 
     it('does not match the tag names of raw-HTML content', async () => {

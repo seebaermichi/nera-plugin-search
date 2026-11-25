@@ -29,11 +29,27 @@ const escapeHtml = (text) =>
 // is: an older vendored client puts `content` into innerHTML, where decoded
 // `<…>` would render as markup.
 const parser = new DOMParser()
+
+const TEXT_NODE = 3
+
+const textNodes = (node) => node.nodeType === TEXT_NODE
+    ? [node.nodeValue]
+    : [...node.childNodes].flatMap(textNodes)
+
+// Default-mode content parses into one text node and decodes exactly as
+// `textContent` would. Raw HTML parses into several, which `textContent`
+// would glue together (`<p>a</p><p>b</p>` → `ab`), so a query could match
+// across two blocks: join them with a space and collapse the whitespace.
+const toText = (html) => {
+    const parts = textNodes(parser.parseFromString(html, 'text/html').body)
+
+    return parts.length === 1
+        ? parts[0]
+        : parts.join(' ').replace(/\s+/g, ' ').trim()
+}
+
 const decodeContent = (item) => typeof item.content === 'string'
-    ? {
-        ...item,
-        content: parser.parseFromString(item.content, 'text/html').body.textContent
-    }
+    ? { ...item, content: toText(item.content) }
     : item
 
 // The query is literal text, so `(`, `[`, `*` and friends must not reach the
@@ -80,26 +96,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const resultList = document.querySelector(resultSelector)
         if (!resultList) return
 
-        // One empty-state element per input, created once and toggled with
-        // `hidden`. It sits after the list rather than in it: it is not a
-        // result, and `.search__results:empty` keeps matching.
-        const empty = document.createElement('p')
-        empty.className = 'search__empty'
-        empty.textContent = input.dataset.searchEmpty || DEFAULT_EMPTY_TEXT
-        empty.hidden = true
-        resultList.after(empty)
+        const emptyText = input.dataset.searchEmpty || DEFAULT_EMPTY_TEXT
 
         fetch(input.dataset.searchIndex || DEFAULT_SEARCH_INDEX)
             .then((res) => res.json())
             .then((entries) => {
                 const data = entries.map(decodeContent)
 
+                // One empty-state element per input, created once the index
+                // has loaded and before any query, so the live region is in
+                // the DOM before its text first changes. It sits after the
+                // list rather than in it: it is not a result, and
+                // `.search__results:empty` keeps matching. Its text is set
+                // when it is shown and cleared when it is hidden, so a screen
+                // reader announces a miss that follows a match or an empty
+                // query.
+                const empty = document.createElement('p')
+                empty.className = 'search__empty'
+                empty.setAttribute('role', 'status')
+                empty.hidden = true
+                resultList.after(empty)
+
+                const showEmpty = (show) => {
+                    empty.hidden = !show
+                    empty.textContent = show ? emptyText : ''
+                }
+
                 input.addEventListener('input', () => {
                     const query = input.value.toLowerCase()
 
                     if (!query) {
                         resultList.innerHTML = ''
-                        empty.hidden = true
+                        showEmpty(false)
                         return
                     }
 
@@ -122,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     `
                     }).join('')
 
-                    empty.hidden = results.length > 0
+                    showEmpty(results.length === 0)
                 })
             })
     })

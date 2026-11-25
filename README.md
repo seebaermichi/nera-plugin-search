@@ -243,21 +243,23 @@ markup: a title `A <b> & "C"` shows exactly that. The indexed `content` keeps
 the HTML entities of the rendered page (`&amp;`, `&quot;`), so the client
 decodes it to plain text first: a page text `Find (pages) & things.` shows and
 matches as written. With `strip_html: false` the indexed content is raw HTML,
-and a snippet then shows its text without the tags. The query is matched
+and a snippet then shows its text without the tags, with a space between
+blocks (`<p>a</p><p>b</p>` reads `a b`). The query is matched
 literally too, so `(`, `*` or `.` find themselves.
 
 When a non-empty query matches nothing, the list stays empty and the client
-shows one message right after it, created once per input and toggled with
-`hidden`:
+shows one message right after it. The element is created once per input as
+soon as the index has loaded, `hidden` and empty, and toggled from then on:
 
 ```html
 <ul class="search__results" data-search__results></ul>
-<p class="search__empty">No results</p>
+<p class="search__empty" role="status">No results</p>
 ```
 
-Its text is the input's `data-search-empty`, which the shipped template fills
-from `t('search_no_results')`. An empty query, or one that matches, hides it
-again. Because the message is outside the list, a theme rule on
+`role="status"` makes it a live region, so a screen reader announces the
+message. Its text is the input's `data-search-empty`, which the shipped
+template fills from `t('search_no_results')`. An empty query, or one that
+matches, hides it again and clears its text. Because the message is outside the list, a theme rule on
 `.search__results:empty` keeps working.
 
 ## 🌍 Multilingual sites
@@ -482,7 +484,7 @@ The template and the client script emit these class names:
 | `.search__link` | `search.js` | the result's link |
 | `.search__description` | `search.js` | the excerpt or match snippet |
 | `.search__highlight` | `search.js` | the matched term inside a snippet |
-| `.search__empty` | `search.js` | the message after the list when a query matches nothing (`hidden` otherwise) |
+| `.search__empty` | `search.js` | the message after the list when a query matches nothing, with `role="status"` (`hidden` and empty otherwise) |
 
 The last five are written by `search.js` at query time, not by the
 template — there is no markup in `search.pug` to read them from. The plugin
