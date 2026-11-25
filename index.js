@@ -76,7 +76,10 @@ function loadConfig() {
         groupByLang: config.group_by_lang === true,
         // Opt-out: only an explicit `false` drops the template's own `h1`, so
         // a site without the key keeps the markup it has always had.
-        showTitle: config.show_title !== false
+        showTitle: config.show_title !== false,
+        // Opt-out, same shape: only an explicit `false` drops the template's
+        // `script` line, for a theme that loads page scripts itself.
+        includeScript: config.include_script !== false
     }
 }
 
@@ -238,7 +241,10 @@ export function getAppData({ app, pagesData }) {
         searchIndexPaths,
         // Read by the shipped `search.pug` to leave out `h1.search__title` on
         // a page that brings its own `h1`.
-        searchShowTitle: options.showTitle
+        searchShowTitle: options.showTitle,
+        // Read by the shipped `search.pug` to leave out its
+        // `script(src="/js/search.js")` when the site loads the client itself.
+        searchIncludeScript: options.includeScript
     }
 }
 

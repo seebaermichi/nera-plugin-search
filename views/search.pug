@@ -24,4 +24,7 @@
 
   ul.search__results(data-search__results)
 
-script(src="/js/search.js")
+//- `include_script: false` in config/search.yaml drops the script, for a site
+    that loads `/js/search.js` itself (a theme's `scripts-extra` seam).
+if !(app && app.searchIncludeScript === false)
+  script(src="/js/search.js")

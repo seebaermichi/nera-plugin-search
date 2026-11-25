@@ -15,3 +15,8 @@ group_by_lang: false
 # false when the search page brings its own `h1`, e.g. from the Markdown
 # `# Heading`, so `nera build --check` finds exactly one `h1` on the page
 show_title: true
+
+# Render the template's own `script(src="/js/search.js")` (default: true). Set
+# it to false when the site loads the client itself, e.g. through a theme's
+# `scripts-extra` seam, so the page does not load it twice
+include_script: true

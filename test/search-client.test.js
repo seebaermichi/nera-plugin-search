@@ -280,4 +280,41 @@ describe('shipped search.pug template', () => {
         expect(html).toContain('class="search__input"')
         expect(html).toContain('class="search__results"')
     })
+
+    const scriptTag = '<script src="/js/search.js"></script>'
+
+    it('renders the script by default', () => {
+        for (const locals of [
+            {},
+            { app: {} },
+            { app: { searchIncludeScript: true } }
+        ]) {
+            const html = renderTemplate(locals)
+
+            expect(html).toContain(scriptTag)
+        }
+    })
+
+    it('leaves out the script with app.searchIncludeScript false', () => {
+        const html = renderTemplate({ app: { searchIncludeScript: false } })
+
+        expect(html).not.toContain('<script')
+        expect(html).toContain('class="search__input"')
+        expect(html).toContain('class="search__results"')
+    })
+
+    // Rendered from the 2.3.1 template (`git show v2.3.1:views/search.pug`)
+    // with `{ app: {} }`, so the comparison is against the released markup,
+    // not against a string written from the new template.
+    it('renders byte-identical to 2.3.1 without the option', () => {
+        const released = fs.readFileSync(
+            path.resolve('test/fixtures/search-2.3.1.html'),
+            'utf-8'
+        )
+
+        expect(renderTemplate({ app: {} })).toBe(released)
+        expect(renderTemplate({ app: { searchIncludeScript: true } })).toBe(
+            released
+        )
+    })
 })

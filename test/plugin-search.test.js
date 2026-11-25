@@ -250,6 +250,49 @@ describe('plugin-search show_title', () => {
     })
 })
 
+// The shipped template loads its client unless the site opts out, so a site
+// without the key renders exactly what it did before 2.4.0.
+describe('plugin-search include_script', () => {
+    const app = { folders: { assets: './assets' } }
+
+    it('sets searchIncludeScript to true without a config file', () => {
+        expect(getAppData({ app, pagesData }).searchIncludeScript).toBe(true)
+    })
+
+    it('sets searchIncludeScript to true when include_script is absent', () => {
+        writeConfig('fields:\n  - title\n')
+
+        expect(getAppData({ app, pagesData }).searchIncludeScript).toBe(true)
+    })
+
+    it('sets searchIncludeScript to true with include_script: true', () => {
+        writeConfig('include_script: true\n')
+
+        expect(getAppData({ app, pagesData }).searchIncludeScript).toBe(true)
+    })
+
+    it('sets searchIncludeScript to false with include_script: false', () => {
+        writeConfig('include_script: false\n')
+
+        expect(getAppData({ app, pagesData }).searchIncludeScript).toBe(false)
+    })
+
+    it('leaves the index unchanged', () => {
+        getAppData({ app, pagesData })
+        const before = fs.readFileSync(
+            path.join(cwd, 'assets/search-index.json'),
+            'utf-8'
+        )
+
+        writeConfig('include_script: false\n')
+        getAppData({ app, pagesData })
+
+        expect(
+            fs.readFileSync(path.join(cwd, 'assets/search-index.json'), 'utf-8')
+        ).toBe(before)
+    })
+})
+
 // `render.js` writes HTML only for pages whose frontmatter defines `layout`,
 // and plugins run before it. Indexing a page the generator will not render
 // gives results that 404, and publishes the body text of a layout-less draft
